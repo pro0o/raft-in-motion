@@ -40,9 +40,25 @@ type Raft struct {
 	votedFor    int
 	log         []LogEntry
 
-	//volatile State on leaders
+	// volatile state on all servers
+	commitIndex int
+	lastApplied int
+
+	// volatile State on leaders
 	state              RfState
 	electionResetEvent time.Time
+	nextIndex          map[int]int
+	matchIndex         map[int]int
+
+	// this chan reports committed log entries to the client. Provided during
+	// construction, it's used to send `CommitEntry` structs once consensus is
+	// reached, ensuring the client can apply the command to its state machine.
+	commitChan chan<- CommitEntry
+
+	// this chan is an internal channel used to signal when new committed
+	// log entries are ready to be sent on `commitChan`. It's a simple notification
+	// channel with an empty struct to minimize overhead.
+	newCommitReadyChan chan struct{}
 }
 
 // key states defined straight outta figure2 of paper
@@ -73,6 +89,14 @@ type AppendEntriesReply struct {
 	Success bool
 }
 
+// CommitEntry reports consensus of a command to the commit channel.
+// The client can now apply the command to its state machine.
+type CommitEntry struct {
+	Command any // The committed client command.
+	Index   int // The index of the command in the Raft log.
+	Term    int // The term when the command was committed.
+}
+
 func (rf RfState) String() string {
 	switch rf {
 	case Follower:
@@ -93,6 +117,7 @@ func (rf *Raft) Kill() {
 	defer rf.mu.Unlock()
 	rf.state = Dead
 	rf.dlog("becomes Dead")
+	close(rf.newCommitReadyChan)
 }
 
 // the service or tester wants to create a Raft server. the ports
@@ -104,17 +129,24 @@ func (rf *Raft) Kill() {
 // tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
-
-func Make(id int, peerIds []int, server *Server, ready <-chan any) *Raft {
+func Make(id int, peerIds []int, server *Server, ready <-chan any, commitChan chan<- CommitEntry) *Raft {
 	rf := &Raft{
-		id:       id,
-		peerIds:  peerIds,
-		server:   server,
-		state:    Follower, // all peers start as follower
-		votedFor: -1,
+		id:                 id,
+		peerIds:            peerIds,
+		server:             server,
+		state:              Follower, // all peers start as follower
+		votedFor:           -1,
+		commitChan:         commitChan,
+		newCommitReadyChan: make(chan struct{}, 16),
+		commitIndex:        -1,
+		lastApplied:        -1,
+		nextIndex:          make(map[int]int),
+		matchIndex:         make(map[int]int),
 	}
 
 	go func() {
+		// after ready chn signal is sparked,
+		// countdown for election starts.
 		<-ready
 		rf.mu.Lock()
 		rf.electionResetEvent = time.Now()
@@ -125,10 +157,12 @@ func Make(id int, peerIds []int, server *Server, ready <-chan any) *Raft {
 	return rf
 }
 
+/*
+// basic workflow of election:
 // follower_timeout -> become_candidate -> request_votes
 // => if_majority_then_become_leader => send_heartbeats
 // => if_higher_term_then_step_down => revert_to_follower => repeat
-
+*/
 func (rf *Raft) runElectionTimer() {
 	timeoutDuration := rf.electionTimeout()
 	rf.mu.Lock()
@@ -192,6 +226,15 @@ func (rf *Raft) dlog(format string, args ...any) {
 	}
 }
 
+func (rf *Raft) lastLogIndexAndTerm() (int, int) {
+	if len(rf.log) > 0 {
+		lastIndex := len(rf.log) - 1
+		return lastIndex, rf.log[lastIndex].Term
+	} else {
+		return -1, -1
+	}
+}
+
 func (rf *Raft) startElection() {
 	rf.state = Candidate
 	rf.currentTerm += 1
@@ -205,9 +248,14 @@ func (rf *Raft) startElection() {
 	// Send RequestVote RPCs to all other servers concurrently.
 	for _, peerId := range rf.peerIds {
 		go func(peerId int) {
+			rf.mu.Lock()
+			savedLastLogIndex, savedLastLogTerm := rf.lastLogIndexAndTerm()
+			rf.mu.Unlock()
 			args := RequestVoteArgs{
-				Term:        savedCurrentTerm,
-				CandidateId: rf.id,
+				Term:         savedCurrentTerm,
+				CandidateId:  rf.id,
+				LastLogIndex: savedLastLogIndex,
+				LastLogTerm:  savedLastLogTerm,
 			}
 			var reply RequestVoteReply
 
@@ -226,9 +274,11 @@ func (rf *Raft) startElection() {
 					rf.dlog("term out of date in RequestVoteReply")
 					rf.becomeFollower(reply.Term)
 					return
+
 				} else if reply.Term == savedCurrentTerm {
 					if reply.VoteGranted {
 						votesReceived += 1
+						// majority bruther
 						if votesReceived*2 > len(rf.peerIds)+1 {
 							// Won the election!!!
 							rf.dlog("wins election with %d votes", votesReceived)
@@ -261,7 +311,12 @@ func (rf *Raft) becomeFollower(term int) {
 // heartbeats as in the AE
 func (rf *Raft) startLeader() {
 	rf.state = Leader
-	rf.dlog("becomes Leader; term=%d, log=%v", rf.currentTerm, rf.log)
+
+	for _, peerId := range rf.peerIds {
+		rf.nextIndex[peerId] = len(rf.log)
+		rf.matchIndex[peerId] = -1
+	}
+	rf.dlog("becomes Leader; term=%d, nextIndex=%v, matchIndex=%v; log=%v", rf.currentTerm, rf.nextIndex, rf.matchIndex, rf.log)
 
 	go func() {
 		ticker := time.NewTicker(50 * time.Millisecond)
@@ -369,7 +424,47 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 			rf.becomeFollower(args.Term)
 		}
 		rf.electionResetEvent = time.Now()
-		reply.Success = true
+
+		// 3. If an existing entry conflicts with a new one (same index
+		// but different terms), delete the existing entry and all that
+		// follow it.
+
+		// Check if the log has an entry at PrevLogIndex with a matching PrevLogTerm.
+		// If PrevLogIndex is -1, assume true as no entry exists to compare.
+		if args.PrevLogIndex == -1 ||
+			(args.PrevLogIndex < len(rf.log) && args.PrevLogTerm == rf.log[args.PrevLogIndex].Term) {
+
+			reply.Success = true
+			logInsertIndex := args.PrevLogIndex + 1
+			newEntriesIndex := 0
+
+			// The main goal here is to find where the terms in the log mismatch between
+			// the follower and leader entries.
+			for {
+				if logInsertIndex >= len(rf.log) || newEntriesIndex >= len(args.Entries) {
+					break
+				}
+				if rf.log[logInsertIndex].Term != args.Entries[newEntriesIndex].Term {
+					break
+				}
+				logInsertIndex++
+				newEntriesIndex++
+			}
+
+			// 4. Append any new entries not already in the log
+			if newEntriesIndex < len(args.Entries) {
+				rf.dlog("... inserting entries %v from index %d", args.Entries[newEntriesIndex:], logInsertIndex)
+				rf.log = append(rf.log[:logInsertIndex], args.Entries[newEntriesIndex:]...)
+				rf.dlog("... log is now: %v", rf.log)
+			}
+
+			if args.LeaderCommit > rf.commitIndex {
+				rf.commitIndex = min(args.LeaderCommit, len(rf.log)-1)
+				rf.dlog("... setting commitIndex=%d", rf.commitIndex)
+				rf.newCommitReadyChan <- struct{}{} // motify others that the commit is ready.
+			}
+		}
+
 	}
 
 	reply.Term = rf.currentTerm
@@ -381,4 +476,22 @@ func (rf *Raft) Report() (id int, term int, isLeader bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	return rf.id, rf.currentTerm, rf.state == Leader
+}
+
+// Submit attempts to submit a new command to the Raft instance (`rf`). This function
+// is non-blocking, meaning it returns immediately after submission. The result of the
+// submission will be reported on the commit channel provided during the creation of
+// the Raft instance, allowing the client to track when the command has been committed
+// (once consensus is reached).
+func (rf *Raft) Submit(command any) bool {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	rf.dlog("Submit received by %v: %v", rf.state, command)
+	if rf.state == Leader {
+		rf.log = append(rf.log, LogEntry{Command: command, Term: rf.currentTerm})
+		rf.dlog("... log=%v", rf.log)
+		return true
+	}
+	return false
 }
