@@ -346,3 +346,33 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 	rf.dlog("... RequestVote reply: %+v", reply)
 	return nil
 }
+
+func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	if rf.state == Dead {
+		return nil
+	}
+	rf.dlog("AppendEntries: %+v", args)
+
+	// 1. Reply false if term < currentTerm
+	if args.Term > rf.currentTerm {
+		rf.dlog("... term out of date in AppendEntries")
+		rf.becomeFollower(args.Term)
+	}
+
+	// 2. Reply false if log doesn’t contain an entry at prevLogIndex
+	// whose term matches prevLogTerm
+	reply.Success = false
+	if args.Term == rf.currentTerm {
+		if rf.state != Follower {
+			rf.becomeFollower(args.Term)
+		}
+		rf.electionResetEvent = time.Now()
+		reply.Success = true
+	}
+
+	reply.Term = rf.currentTerm
+	rf.dlog("AppendEntries reply: %+v", *reply)
+	return nil
+}

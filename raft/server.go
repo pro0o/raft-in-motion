@@ -165,3 +165,19 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 	}
 	return rpp.rf.RequestVote(args, reply)
 }
+
+func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
+	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
+		dice := rand.Intn(10)
+		if dice == 9 {
+			rpp.rf.dlog("drop AppendEntries")
+			return fmt.Errorf("RPC failed")
+		} else if dice == 8 {
+			rpp.rf.dlog("delay AppendEntries")
+			time.Sleep(75 * time.Millisecond)
+		}
+	} else {
+		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
+	}
+	return rpp.rf.AppendEntries(args, reply)
+}
