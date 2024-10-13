@@ -376,3 +376,9 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 	rf.dlog("AppendEntries reply: %+v", *reply)
 	return nil
 }
+
+func (rf *Raft) Report() (id int, term int, isLeader bool) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	return rf.id, rf.currentTerm, rf.state == Leader
+}
