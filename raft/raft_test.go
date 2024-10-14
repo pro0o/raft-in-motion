@@ -1,8 +1,7 @@
-// Eli Bendersky [https://eli.thegreenplace.net]
-// This code is in the public domain.
 package raft
 
 import (
+	"main/helper"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ func TestElectionLeaderDisconnect(t *testing.T) {
 	origLeaderId, origTerm := h.CheckSingleLeader()
 
 	h.DisconnectPeer(origLeaderId)
-	sleepMs(350)
+	helper.SleepMs(350)
 
 	newLeaderId, newTerm := h.CheckSingleLeader()
 	if newLeaderId == origLeaderId {
@@ -45,7 +44,7 @@ func TestElectionLeaderAndAnotherDisconnect(t *testing.T) {
 	h.DisconnectPeer(otherId)
 
 	// No quorum.
-	sleepMs(450)
+	helper.SleepMs(450)
 	h.CheckNoLeader()
 
 	// Reconnect one other server; now we'll have quorum.
@@ -57,12 +56,12 @@ func TestDisconnectAllThenRestore(t *testing.T) {
 	h := NewHarness(t, 3)
 	defer h.Shutdown()
 
-	sleepMs(100)
+	helper.SleepMs(100)
 	//	Disconnect all servers from the start. There will be no leader.
 	for i := 0; i < 3; i++ {
 		h.DisconnectPeer(i)
 	}
-	sleepMs(450)
+	helper.SleepMs(450)
 	h.CheckNoLeader()
 
 	// Reconnect all servers. A leader will be found.
@@ -79,11 +78,11 @@ func TestElectionLeaderDisconnectThenReconnect(t *testing.T) {
 
 	h.DisconnectPeer(origLeaderId)
 
-	sleepMs(350)
+	helper.SleepMs(350)
 	newLeaderId, newTerm := h.CheckSingleLeader()
 
 	h.ReconnectPeer(origLeaderId)
-	sleepMs(150)
+	helper.SleepMs(150)
 
 	againLeaderId, againTerm := h.CheckSingleLeader()
 
@@ -104,11 +103,11 @@ func TestElectionLeaderDisconnectThenReconnect5(t *testing.T) {
 	origLeaderId, _ := h.CheckSingleLeader()
 
 	h.DisconnectPeer(origLeaderId)
-	sleepMs(150)
+	helper.SleepMs(150)
 	newLeaderId, newTerm := h.CheckSingleLeader()
 
 	h.ReconnectPeer(origLeaderId)
-	sleepMs(150)
+	helper.SleepMs(150)
 
 	againLeaderId, againTerm := h.CheckSingleLeader()
 
@@ -132,7 +131,7 @@ func TestElectionFollowerComesBack(t *testing.T) {
 	h.DisconnectPeer(otherId)
 	time.Sleep(650 * time.Millisecond)
 	h.ReconnectPeer(otherId)
-	sleepMs(150)
+	helper.SleepMs(150)
 
 	// We can't have an assertion on the new leader id here because it depends
 	// on the relative election timeouts. We can assert that the term changed,
@@ -155,7 +154,7 @@ func TestElectionDisconnectLoop(t *testing.T) {
 		h.DisconnectPeer(leaderId)
 		otherId := (leaderId + 1) % 3
 		h.DisconnectPeer(otherId)
-		sleepMs(310)
+		helper.SleepMs(310)
 		h.CheckNoLeader()
 
 		// Reconnect both.
@@ -163,6 +162,174 @@ func TestElectionDisconnectLoop(t *testing.T) {
 		h.ReconnectPeer(leaderId)
 
 		// Give it time to settle
-		sleepMs(150)
+		helper.SleepMs(150)
 	}
+}
+
+func TestSubmitNonLeaderFails(t *testing.T) {
+	h := NewHarness(t, 3)
+	defer h.Shutdown()
+
+	origLeaderId, _ := h.CheckSingleLeader()
+	sid := (origLeaderId + 1) % 3
+	helper.Tlog("submitting 42 to %d", sid)
+	isLeader := h.SubmitToServer(sid, 42)
+	if isLeader {
+		t.Errorf("want id=%d !leader, but it is", sid)
+	}
+	helper.SleepMs(10)
+}
+
+func TestCommitOneCommand(t *testing.T) {
+	defer leaktest.CheckTimeout(t, 100*time.Millisecond)()
+
+	h := NewHarness(t, 3)
+	defer h.Shutdown()
+
+	origLeaderId, _ := h.CheckSingleLeader()
+
+	helper.Tlog("submitting 42 to %d", origLeaderId)
+	isLeader := h.SubmitToServer(origLeaderId, 42)
+	if !isLeader {
+		t.Errorf("want id=%d leader, but it's not", origLeaderId)
+	}
+
+	helper.SleepMs(150)
+	h.CheckCommittedN(42, 3)
+}
+func TestCommitMultipleCommands(t *testing.T) {
+	defer leaktest.CheckTimeout(t, 100*time.Millisecond)()
+
+	h := NewHarness(t, 3)
+	defer h.Shutdown()
+
+	origLeaderId, _ := h.CheckSingleLeader()
+
+	values := []int{42, 55, 81}
+	for _, v := range values {
+		helper.Tlog("submitting %d to %d", v, origLeaderId)
+		isLeader := h.SubmitToServer(origLeaderId, v)
+		if !isLeader {
+			t.Errorf("want id=%d leader, but it's not", origLeaderId)
+		}
+		helper.SleepMs(100)
+	}
+
+	helper.SleepMs(150)
+	nc, i1 := h.CheckCommitted(42)
+	_, i2 := h.CheckCommitted(55)
+	if nc != 3 {
+		t.Errorf("want nc=3, got %d", nc)
+	}
+	if i1 >= i2 {
+		t.Errorf("want i1<i2, got i1=%d i2=%d", i1, i2)
+	}
+
+	_, i3 := h.CheckCommitted(81)
+	if i2 >= i3 {
+		t.Errorf("want i2<i3, got i2=%d i3=%d", i2, i3)
+	}
+}
+
+func TestNoCommitWithNoQuorum(t *testing.T) {
+	defer leaktest.CheckTimeout(t, 100*time.Millisecond)()
+
+	h := NewHarness(t, 3)
+	defer h.Shutdown()
+
+	// Submit a couple of values to a fully connected cluster.
+	origLeaderId, origTerm := h.CheckSingleLeader()
+	h.SubmitToServer(origLeaderId, 5)
+	h.SubmitToServer(origLeaderId, 6)
+
+	helper.SleepMs(250)
+	h.CheckCommittedN(6, 3)
+
+	// Disconnect both followers.
+	dPeer1 := (origLeaderId + 1) % 3
+	dPeer2 := (origLeaderId + 2) % 3
+	h.DisconnectPeer(dPeer1)
+	h.DisconnectPeer(dPeer2)
+	helper.SleepMs(250)
+
+	h.SubmitToServer(origLeaderId, 8)
+	helper.SleepMs(250)
+	h.CheckNotCommitted(8)
+
+	// Reconnect both other servers, we'll have quorum now.
+	h.ReconnectPeer(dPeer1)
+	h.ReconnectPeer(dPeer2)
+	helper.SleepMs(600)
+
+	// 8 is still not committed because the term has changed.
+	h.CheckNotCommitted(8)
+
+	// A new leader will be elected. It could be a different leader, even though
+	// the original's log is longer, because the two reconnected peers can elect
+	// each other.
+	newLeaderId, againTerm := h.CheckSingleLeader()
+	if origTerm == againTerm {
+		t.Errorf("got origTerm==againTerm==%d; want them different", origTerm)
+	}
+
+	// But new values will be committed for sure...
+	h.SubmitToServer(newLeaderId, 9)
+	h.SubmitToServer(newLeaderId, 10)
+	h.SubmitToServer(newLeaderId, 11)
+	helper.SleepMs(350)
+
+	for _, v := range []int{9, 10, 11} {
+		h.CheckCommittedN(v, 3)
+	}
+}
+
+func TestCommitsWithLeaderDisconnects(t *testing.T) {
+	defer leaktest.CheckTimeout(t, 100*time.Millisecond)()
+
+	h := NewHarness(t, 5)
+	defer h.Shutdown()
+
+	// Submit a couple of values to a fully connected cluster.
+	origLeaderId, _ := h.CheckSingleLeader()
+	h.SubmitToServer(origLeaderId, 5)
+	h.SubmitToServer(origLeaderId, 6)
+
+	helper.SleepMs(150)
+	h.CheckCommittedN(6, 5)
+
+	// Leader disconnected...
+	h.DisconnectPeer(origLeaderId)
+	helper.SleepMs(10)
+
+	// Submit 7 to original leader, even though it's disconnected.
+	h.SubmitToServer(origLeaderId, 7)
+
+	helper.SleepMs(150)
+	h.CheckNotCommitted(7)
+
+	newLeaderId, _ := h.CheckSingleLeader()
+
+	// Submit 8 to new leader.
+	h.SubmitToServer(newLeaderId, 8)
+	helper.SleepMs(150)
+	h.CheckCommittedN(8, 4)
+
+	// Reconnect old leader and let it settle. The old leader shouldn't be the one
+	// winning.
+	h.ReconnectPeer(origLeaderId)
+	helper.SleepMs(600)
+
+	finalLeaderId, _ := h.CheckSingleLeader()
+	if finalLeaderId == origLeaderId {
+		t.Errorf("got finalLeaderId==origLeaderId==%d, want them different", finalLeaderId)
+	}
+
+	// Submit 9 and check it's fully committed.
+	h.SubmitToServer(newLeaderId, 9)
+	helper.SleepMs(150)
+	h.CheckCommittedN(9, 5)
+	h.CheckCommittedN(8, 5)
+
+	// But 7 is not committed...
+	h.CheckNotCommitted(7)
 }
