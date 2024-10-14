@@ -86,7 +86,7 @@ type AppendEntriesArgs struct {
 
 type AppendEntriesReply struct {
 	Term    int
-	Success bool
+	Success bool //tell the leader whether the follower saw a match for prevLogIndex and prevLogTerm
 }
 
 // CommitEntry reports consensus of a command to the commit channel.
@@ -153,6 +153,7 @@ func Make(id int, peerIds []int, server *Server, ready <-chan any, commitChan ch
 		rf.mu.Unlock()
 		rf.runElectionTimer()
 	}()
+	go rf.commitChanSender()
 
 	return rf
 }
@@ -341,34 +342,108 @@ func (rf *Raft) startLeader() {
 // replies and adjusts rf's state.
 func (rf *Raft) leaderSendHeartbeats() {
 	rf.mu.Lock()
-	if rf.state != Leader {
-		rf.mu.Unlock()
-		return
-	}
 	savedCurrentTerm := rf.currentTerm
 	rf.mu.Unlock()
 
 	for _, peerId := range rf.peerIds {
-		args := AppendEntriesArgs{
-			Term:     savedCurrentTerm,
-			LeaderId: rf.id,
-		}
 		go func(peerId int) {
-			rf.dlog("sending AppendEntries to %v: ni=%d, args=%+v", peerId, 0, args)
+
+			rf.mu.Lock()
+			nextIndex := rf.nextIndex[peerId]
+			prevLogIndex := nextIndex - 1
+			prevLogTerm := -1
+
+			if prevLogIndex >= 0 {
+				prevLogTerm = rf.log[prevLogIndex].Term
+			}
+			entries := rf.log[nextIndex:]
+
+			args := AppendEntriesArgs{
+				Term:         savedCurrentTerm,
+				LeaderId:     rf.id,
+				PrevLogIndex: prevLogIndex,
+				PrevLogTerm:  prevLogTerm,
+				Entries:      entries,
+				LeaderCommit: rf.commitIndex,
+			}
+			rf.mu.Unlock()
+
+			rf.dlog("sending AppendEntries to %v: nextIndex=%d, args=%+v", peerId, nextIndex, args)
 			var reply AppendEntriesReply
 			if err := rf.server.Call(peerId, "Raft.AppendEntries", args, &reply); err == nil {
 				rf.mu.Lock()
 				defer rf.mu.Unlock()
 
-				// diffuse the leader
+				// init check
 				if reply.Term > savedCurrentTerm {
 					rf.dlog("term out of date in heartbeat reply")
 					rf.becomeFollower(reply.Term)
 					return
 				}
+
+				if rf.state == Leader && savedCurrentTerm == reply.Term {
+					if reply.Success {
+						rf.nextIndex[peerId] = nextIndex + len(entries)
+						rf.matchIndex[peerId] = rf.nextIndex[peerId] - 1
+						rf.dlog("AppendEntries reply from %d success: nextIndex := %v, matchIndex := %v", peerId, rf.nextIndex, rf.matchIndex)
+
+						savedCommitIndex := rf.commitIndex
+						for i := rf.commitIndex + 1; i < len(rf.log); i++ {
+							if rf.log[i].Term == rf.currentTerm {
+								matchCount := 1
+								for _, peerId := range rf.peerIds {
+									if rf.matchIndex[peerId] >= i {
+										matchCount++
+									}
+								}
+								if matchCount*2 > len(rf.peerIds)+1 {
+									rf.commitIndex = i
+								}
+							}
+						}
+						if rf.commitIndex != savedCommitIndex {
+							rf.dlog("leader sets commitIndex := %d", rf.commitIndex)
+							rf.newCommitReadyChan <- struct{}{} //signals that new entries are ready to be sent on the commit channel to the client
+						}
+					} else {
+						rf.nextIndex[peerId] = nextIndex - 1
+						rf.dlog("AppendEntries reply from %d !success: nextIndex := %d", peerId, nextIndex-1)
+					}
+				}
 			}
 		}(peerId)
 	}
+}
+
+// commitChanSender is responsible for sending committed entries on
+// rf.commitChan. It watches newCommitReadyChan for notifications and calculates
+// which new entries are ready to be sent. This method should run in a separate
+// background goroutine; rf.commitChan may be buffered and will limit how fast
+// the client consumes new committed entries. Returns when newCommitReadyChan is
+// closed.
+func (rf *Raft) commitChanSender() {
+	for range rf.newCommitReadyChan {
+		// Find which entries we have to apply.
+		rf.mu.Lock()
+		savedTerm := rf.currentTerm
+		savedLastApplied := rf.lastApplied
+		var entries []LogEntry
+		if rf.commitIndex > rf.lastApplied {
+			entries = rf.log[rf.lastApplied+1 : rf.commitIndex+1]
+			rf.lastApplied = rf.commitIndex
+		}
+		rf.mu.Unlock()
+		rf.dlog("commitChanSender entries=%v, savedLastApplied=%d", entries, savedLastApplied)
+
+		for i, entry := range entries {
+			rf.commitChan <- CommitEntry{
+				Command: entry.Command,
+				Index:   savedLastApplied + i + 1,
+				Term:    savedTerm,
+			}
+		}
+	}
+	rf.dlog("commitChanSender done")
 }
 
 // RequestVote RPC from figure 2 of paper

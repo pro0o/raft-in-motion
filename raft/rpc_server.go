@@ -24,6 +24,7 @@ type Server struct {
 	listener  net.Listener
 
 	peerClients map[int]*rpc.Client
+	commitChan  chan<- CommitEntry
 
 	ready <-chan any
 	quit  chan any
@@ -34,19 +35,20 @@ type RPCProxy struct {
 	rf *Raft
 }
 
-func NewServer(serverId int, peerIds []int, ready <-chan any) *Server {
+func NewServer(serverId int, peerIds []int, ready <-chan any, commitChan chan<- CommitEntry) *Server {
 	s := new(Server)
 	s.serverId = serverId
 	s.peerIds = peerIds
 	s.peerClients = make(map[int]*rpc.Client)
 	s.ready = ready
+	s.commitChan = commitChan
 	s.quit = make(chan any)
 	return s
 }
 
 func (s *Server) Serve() {
 	s.mu.Lock()
-	s.rf = Make(s.serverId, s.peerIds, s, s.ready)
+	s.rf = Make(s.serverId, s.peerIds, s, s.ready, s.commitChan)
 
 	// Create a new RPC server and register a RPCProxy that forwards all methods
 	// to n.rf
@@ -154,10 +156,10 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.dlog("drop RequestVote")
+			rpp.rf.Dlog("drop RequestVote")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.dlog("delay RequestVote")
+			rpp.rf.Dlog("delay RequestVote")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
@@ -170,10 +172,10 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.dlog("drop AppendEntries")
+			rpp.rf.Dlog("drop AppendEntries")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.dlog("delay AppendEntries")
+			rpp.rf.Dlog("delay AppendEntries")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
