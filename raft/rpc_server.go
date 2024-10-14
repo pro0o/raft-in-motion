@@ -156,10 +156,10 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.Dlog("drop RequestVote")
+			rpp.rf.dlog("drop RequestVote")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.Dlog("delay RequestVote")
+			rpp.rf.dlog("delay RequestVote")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
@@ -172,10 +172,10 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.Dlog("drop AppendEntries")
+			rpp.rf.dlog("drop AppendEntries")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.Dlog("delay AppendEntries")
+			rpp.rf.dlog("delay AppendEntries")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
