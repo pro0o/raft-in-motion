@@ -1,4 +1,4 @@
-package kv
+package types
 
 // put
 type PutRequest struct {
