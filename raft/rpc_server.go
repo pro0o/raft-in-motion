@@ -1,8 +1,10 @@
+// SKELETON
 package raft
 
 import (
 	"fmt"
 	"log"
+	"main/logstore"
 	"math/rand"
 	"net"
 	"net/rpc"
@@ -18,42 +20,41 @@ type Server struct {
 	peerIds  []int
 
 	rf       *Raft
+	storage  Storage
 	rpcProxy *RPCProxy
 
 	rpcServer *rpc.Server
 	listener  net.Listener
 
-	peerClients map[int]*rpc.Client
 	commitChan  chan<- CommitEntry
+	peerClients map[int]*rpc.Client
 
 	ready <-chan any
 	quit  chan any
 	wg    sync.WaitGroup
 }
 
-type RPCProxy struct {
-	rf *Raft
-}
-
-func NewServer(serverId int, peerIds []int, ready <-chan any, commitChan chan<- CommitEntry) *Server {
+func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore) *Server {
 	s := new(Server)
 	s.serverId = serverId
 	s.peerIds = peerIds
 	s.peerClients = make(map[int]*rpc.Client)
+	s.storage = storage
 	s.ready = ready
 	s.commitChan = commitChan
 	s.quit = make(chan any)
+	defer func() {
+		s.mu.Lock()
+		s.mu.Unlock()
+		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, logs)
+	}()
 	return s
 }
 
 func (s *Server) Serve() {
 	s.mu.Lock()
-	s.rf = Make(s.serverId, s.peerIds, s, s.ready, s.commitChan)
-
-	// Create a new RPC server and register a RPCProxy that forwards all methods
-	// to n.rf
 	s.rpcServer = rpc.NewServer()
-	s.rpcProxy = &RPCProxy{rf: s.rf}
+	s.rpcProxy = NewProxy(s.rf)
 	s.rpcServer.RegisterName("Raft", s.rpcProxy)
 
 	var err error
@@ -87,7 +88,10 @@ func (s *Server) Serve() {
 	}()
 }
 
-// DisconnectAll closes all the client connections to peers for this server.
+func (s *Server) Submit(cmd any) int {
+	return s.rf.Submit(cmd)
+}
+
 func (s *Server) DisconnectAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -99,7 +103,6 @@ func (s *Server) DisconnectAll() {
 	}
 }
 
-// Shutdown closes the server and waits for it to shut down properly.
 func (s *Server) Shutdown() {
 	s.rf.Kill()
 	close(s.quit)
@@ -126,7 +129,6 @@ func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 	return nil
 }
 
-// DisconnectPeer disconnects this server from the peer identified by peerId.
 func (s *Server) DisconnectPeer(peerId int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -143,12 +145,38 @@ func (s *Server) Call(id int, serviceMethod string, args any, reply any) error {
 	peer := s.peerClients[id]
 	s.mu.Unlock()
 
-	// If this is called after shutdown (where client.Close is called), it will
-	// return an error.
 	if peer == nil {
 		return fmt.Errorf("call client %d after it's closed", id)
 	} else {
-		return peer.Call(serviceMethod, args, reply)
+		return s.rpcProxy.Call(peer, serviceMethod, args, reply)
+	}
+}
+
+func (s *Server) IsLeader() bool {
+	_, _, isLeader := s.rf.Report()
+	return isLeader
+}
+
+// RPCProxy acts as a proxy server for Raft's RPC methods, intercepting and manipulating RPC request
+// before forwarding them to the Raft server.
+// mainly willl be useful for simulating..
+type RPCProxy struct {
+	mu                 sync.Mutex
+	rf                 *Raft
+	numCallsBeforeDrop int
+	//   -1: means we're not dropping any calls
+	//    0: means we're dropping all calls now
+	//   >0: means we'll start dropping calls after this number is made
+}
+
+func (s *Server) Proxy() *RPCProxy {
+	return s.rpcProxy
+}
+
+func NewProxy(rf *Raft) *RPCProxy {
+	return &RPCProxy{
+		rf:                 rf,
+		numCallsBeforeDrop: -1,
 	}
 }
 
@@ -182,4 +210,33 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
 	}
 	return rpp.rf.AppendEntries(args, reply)
+}
+
+func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) error {
+	rpp.mu.Lock()
+	if rpp.numCallsBeforeDrop == 0 {
+		rpp.mu.Unlock()
+		rpp.rf.dlog("drop Call %s: %v", method, args)
+		return fmt.Errorf("RPC failed")
+	} else {
+		if rpp.numCallsBeforeDrop > 0 {
+			rpp.numCallsBeforeDrop--
+		}
+		rpp.mu.Unlock()
+		return peer.Call(method, args, reply)
+	}
+}
+
+func (rpp *RPCProxy) DropCallsAfterN(n int) {
+	rpp.mu.Lock()
+	defer rpp.mu.Unlock()
+
+	rpp.numCallsBeforeDrop = n
+}
+
+func (rpp *RPCProxy) DontDropCalls() {
+	rpp.mu.Lock()
+	defer rpp.mu.Unlock()
+
+	rpp.numCallsBeforeDrop = -1
 }
