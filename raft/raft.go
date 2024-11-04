@@ -2,7 +2,7 @@ package raft
 
 import (
 	"fmt"
-	"log"
+	"main/logstore"
 	"sync"
 	"time"
 )
@@ -77,6 +77,7 @@ type Raft struct {
 	// triggerAEChan is an internal notification channel used to trigger
 	// sending new AEs to followers when interesting changes occurred.
 	triggerAEChan chan struct{}
+	logs          *logstore.LogStore
 }
 
 // HELPER FUNCS
@@ -129,8 +130,8 @@ func (rf *Raft) Kill() {
 // dlog logs a debugging message if DebugRF > 0.
 func (rf *Raft) dlog(format string, args ...any) {
 	if DebugRF > 0 {
-		format = fmt.Sprintf("[%d] ", rf.id) + format
-		log.Printf(format, args...)
+		formattedMsg := fmt.Sprintf("[%d] ", rf.id) + fmt.Sprintf(format, args...)
+		rf.logs.AddLog(logstore.Raft, rf.id, formattedMsg)
 	}
 }
 
@@ -142,7 +143,7 @@ func (rf *Raft) dlog(format string, args ...any) {
 // tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
-func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan any, commitChan chan<- CommitEntry) *Raft {
+func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore) *Raft {
 	rf := new(Raft)
 	rf.id = id
 	rf.peerIds = peerIds
@@ -157,6 +158,7 @@ func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan a
 	rf.lastApplied = -1
 	rf.nextIndex = make(map[int]int)
 	rf.matchIndex = make(map[int]int)
+	rf.logs = logs
 
 	if rf.storage.HasData() {
 		rf.restoreFromStorage()
