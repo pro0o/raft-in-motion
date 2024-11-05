@@ -1,4 +1,4 @@
-// Test harness for testing the KV service and clients.
+// harness.go
 package main
 
 import (
@@ -6,16 +6,39 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"main/kv/client"
 	"main/kv/server"
 	"main/logstore"
 	"main/raft"
+
+	"github.com/gorilla/websocket"
 )
 
 func init() {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
+}
+
+// PortManager manages port allocation for multiple clients
+type PortManager struct {
+	basePort int32
+}
+
+func NewPortManager(initialPort int) *PortManager {
+	return &PortManager{
+		basePort: int32(initialPort),
+	}
+}
+
+func (pm *PortManager) NextPortRange(count int) []int {
+	start := atomic.AddInt32(&pm.basePort, int32(count))
+	ports := make([]int, count)
+	for i := 0; i < count; i++ {
+		ports[i] = int(start) + i
+	}
+	return ports
 }
 
 type Harness struct {
@@ -27,14 +50,23 @@ type Harness struct {
 	alive          []bool
 	ctx            context.Context
 	ctxCancel      func()
+	clientID       string
 }
 
-func NewHarness(n int, logs *logstore.LogStore) *Harness {
+var portManager = NewPortManager(14200)
+
+func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness {
+	log.Printf("new harness being created...")
 	kvss := make([]*server.KVService, n)
 	ready := make(chan any)
 	connected := make([]bool, n)
 	alive := make([]bool, n)
 	storage := make([]*raft.MapStorage, n)
+
+	// Get unique ports for this client's cluster
+	ports := portManager.NextPortRange(n)
+	clientID := fmt.Sprintf("%p", wsConn)
+	log.Printf("Creating new harness for client %s with ports %v", clientID, ports)
 
 	// Create all KVService instances in this cluster.
 	for i := range n {
@@ -46,12 +78,11 @@ func NewHarness(n int, logs *logstore.LogStore) *Harness {
 		}
 
 		storage[i] = raft.NewMapStorage()
-		kvss[i] = server.New(i, peerIds, storage[i], ready, logs)
+		kvss[i] = server.New(i, peerIds, storage[i], ready, logs, wsConn)
 		alive[i] = true
 	}
 
-	// Connect the Raft peers of the services to each other and close the ready
-	// channel to signal to them it's all ready.
+	// Connect the Raft peers of the services to each other
 	for i := range n {
 		for j := range n {
 			if i != j {
@@ -65,10 +96,9 @@ func NewHarness(n int, logs *logstore.LogStore) *Harness {
 	// Each KVService instance serves a REST API on a different port
 	kvServiceAddrs := make([]string, n)
 	for i := range n {
-		port := 14200 + i
-		kvss[i].ServeHTTP(port)
-
-		kvServiceAddrs[i] = fmt.Sprintf("localhost:%d", port)
+		kvss[i].ServeHTTP(ports[i])
+		kvServiceAddrs[i] = fmt.Sprintf("localhost:%d", ports[i])
+		log.Printf("[%s] Server %d listening on %s", clientID, i, kvServiceAddrs[i])
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -82,11 +112,14 @@ func NewHarness(n int, logs *logstore.LogStore) *Harness {
 		storage:        storage,
 		ctx:            ctx,
 		ctxCancel:      ctxCancel,
+		clientID:       clientID,
 	}
+	log.Printf("new harness has been created")
 	return h
 }
 
 func (h *Harness) Shutdown() {
+	log.Printf("[%s] Shutting down harness", h.clientID)
 	for i := range h.n {
 		h.kvCluster[i].DisconnectFromAllRaftPeers()
 		h.connected[i] = false
@@ -99,19 +132,20 @@ func (h *Harness) Shutdown() {
 		if h.alive[i] {
 			h.alive[i] = false
 			if err := h.kvCluster[i].Shutdown(); err != nil {
-				return
+				log.Printf("[%s] Error shutting down server %d: %v", h.clientID, i, err)
 			}
 		}
 	}
 }
-func (h *Harness) NewClient(logs *logstore.LogStore) *client.KVClient {
+
+func (h *Harness) NewClient(logs *logstore.LogStore, wsConn *websocket.Conn) *client.KVClient {
 	var addrs []string
 	for i := range h.n {
 		if h.alive[i] {
 			addrs = append(addrs, h.kvServiceAddrs[i])
 		}
 	}
-	return client.New(addrs, logs)
+	return client.New(addrs, logs, wsConn)
 }
 
 func (h *Harness) CheckSingleLeader() int {
@@ -131,36 +165,34 @@ func (h *Harness) CheckSingleLeader() int {
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
-
 	return -1
 }
 
-// CheckPut sends a Put request through client c, and checks there are no
-// errors. Returns (prevValue, keyFound).
 func (h *Harness) CheckPut(c *client.KVClient, key, value string) (string, bool) {
 	ctx, cancel := context.WithTimeout(h.ctx, 500*time.Millisecond)
 	defer cancel()
 	pv, f, err := c.Put(ctx, key, value)
 	if err != nil {
+		log.Printf("[%s] Put error: %v", h.clientID, err)
 		return pv, f
 	}
 	return pv, f
 }
 
-// CheckGet sends a Get request through client c, and checks there are
-// no errors; it also checks that the key was found, and has the expected
-// value.
 func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 	ctx, cancel := context.WithTimeout(h.ctx, 500*time.Millisecond)
 	defer cancel()
 	gv, f, err := c.Get(ctx, key)
 	if err != nil {
+		log.Printf("[%s] Get error: %v", h.clientID, err)
 		return
 	}
 	if !f {
+		log.Printf("[%s] Key not found: %s", h.clientID, key)
 		return
 	}
 	if gv != wantValue {
+		log.Printf("[%s] Value mismatch for key %s: got %s, want %s", h.clientID, key, gv, wantValue)
 		return
 	}
 }
