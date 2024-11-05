@@ -11,6 +11,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type Server struct {
@@ -34,7 +36,7 @@ type Server struct {
 	wg    sync.WaitGroup
 }
 
-func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore) *Server {
+func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore, wsConn *websocket.Conn) *Server {
 	s := new(Server)
 	s.serverId = serverId
 	s.peerIds = peerIds
@@ -46,7 +48,7 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 	defer func() {
 		s.mu.Lock()
 		s.mu.Unlock()
-		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, logs)
+		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, logs, wsConn)
 	}()
 	return s
 }

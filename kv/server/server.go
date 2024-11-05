@@ -16,6 +16,8 @@ import (
 	"main/kv/types"
 	"main/logstore"
 	"main/raft"
+
+	"github.com/gorilla/websocket"
 )
 
 const DebugKV = 1
@@ -33,18 +35,19 @@ type KVService struct {
 	ds         *DataStore                    // The underlying key-value data store (state machine).
 	srv        *http.Server                  // The HTTP server used to expose this service to external clients.
 	logs       *logstore.LogStore
+	wsConn     *websocket.Conn
 }
 
 // New initializes a new KVService instance for the given node ID and its peers.
 // It registers the Command struct for gob encoding, sets up the commit channel,
 // and creates a Raft server to handle Raft-related RPCs. It then launches the Raft server
 // and returns the initialized KVService.
-func New(id int, peerIds []int, storage raft.Storage, readyChan <-chan any, logs *logstore.LogStore) *KVService {
+func New(id int, peerIds []int, storage raft.Storage, readyChan <-chan any, logs *logstore.LogStore, wsConn *websocket.Conn) *KVService {
 	gob.Register(Command{})
 	commitChan := make(chan raft.CommitEntry)
 
 	// Raft server setup, this node will start accepting RPC connections from peers
-	rs := raft.NewServer(id, peerIds, storage, readyChan, commitChan, logs)
+	rs := raft.NewServer(id, peerIds, storage, readyChan, commitChan, logs, wsConn)
 	rs.Serve()
 
 	kvs := &KVService{
@@ -54,6 +57,7 @@ func New(id int, peerIds []int, storage raft.Storage, readyChan <-chan any, logs
 		ds:         NewDataStore(),
 		commitSubs: make(map[int]chan raft.CommitEntry),
 		logs:       logs,
+		wsConn:     wsConn,
 	}
 
 	// Start the commit updater that handles updates to the replicated state machine.
@@ -255,7 +259,7 @@ func (kvs *KVService) popCommitSubscription(logIndex int) chan raft.CommitEntry 
 func (kvs *KVService) kvlog(format string, args ...any) {
 	if DebugKV > 0 {
 		formattedMsg := fmt.Sprintf("[kv %d] ", kvs.id) + fmt.Sprintf(format, args...)
-		kvs.logs.AddLog(logstore.KV, kvs.id, formattedMsg)
+		kvs.logs.AddLog(kvs.wsConn, logstore.KV, kvs.id, formattedMsg)
 	}
 }
 

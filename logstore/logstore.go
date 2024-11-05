@@ -1,7 +1,9 @@
+// main/logstore/logstore.go
 package logstore
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -9,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Define the LogState enum
 type LogState int
 
 const (
@@ -31,7 +32,6 @@ func (ls LogState) String() string {
 	}
 }
 
-// Define LogEntry struct
 type LogEntry struct {
 	State     LogState `json:"state"`
 	ID        int      `json:"id"`
@@ -39,115 +39,88 @@ type LogEntry struct {
 	Timestamp int64    `json:"timestamp"`
 }
 
-// Define LogStore struct
 type LogStore struct {
-	mu          sync.Mutex
-	logs        []LogEntry
-	clients     map[*websocket.Conn]bool // Active WebSocket clients
-	broadcast   chan LogEntry            // Channel to send new log entries
-	upgrader    websocket.Upgrader       // Upgrader for WebSocket connections
-	connectChan chan bool                // Channel to notify when a client connects
+	mu             sync.RWMutex
+	upgrader       websocket.Upgrader
+	connectChan    chan *websocket.Conn
+	clients        map[*websocket.Conn]bool
+	disconnectChan chan *websocket.Conn
 }
 
-// Create a new LogStore
-func NewLogStore(connectChan chan bool) *LogStore {
+func NewLogStore() *LogStore {
 	return &LogStore{
-		logs:      make([]LogEntry, 0),
-		clients:   make(map[*websocket.Conn]bool),
-		broadcast: make(chan LogEntry),
+		clients:        make(map[*websocket.Conn]bool),
+		connectChan:    make(chan *websocket.Conn, 10),
+		disconnectChan: make(chan *websocket.Conn, 10),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow any origin
+				return true
 			},
 		},
-		connectChan: connectChan, // Store the channel for client connection notifications
 	}
 }
 
-// Add a log and broadcast to WebSocket clients
-func (ls *LogStore) AddLog(state LogState, id int, args ...any) {
-	ls.mu.Lock()
-
-	// Create log entry
+func (ls *LogStore) AddLog(ws *websocket.Conn, state LogState, id int, args ...any) {
 	logEntry := LogEntry{
 		State:     state,
 		ID:        id,
 		Args:      args,
 		Timestamp: time.Now().UnixNano(),
 	}
-	ls.logs = append(ls.logs, logEntry)
-
-	// Unlock before broadcasting
-	ls.mu.Unlock()
-
-	// Send the new log entry to the broadcast channel
-	ls.broadcast <- logEntry
-}
-func (ls *LogStore) HandleConnections(w http.ResponseWriter, r *http.Request) {
-	ws, err := ls.upgrader.Upgrade(w, r, nil)
-
-	if err != nil {
-		fmt.Println("Error upgrading to WebSocket:", err)
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	if err := ws.WriteJSON(logEntry); err != nil {
+		ls.disconnectChan <- ws
+		delete(ls.clients, ws)
+		// ws.Close()
+		log.Printf("Error sending log to client: %v\n", err)
 		return
 	}
-	defer ws.Close()
+}
 
-	// Register the new client
+func (ls *LogStore) HandleConnections(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
+	log.Printf("hello from handle conncection")
+	ws, err := ls.upgrader.Upgrade(w, r, nil)
+	// log.Printf("ws detail:", ws)
+	if err != nil {
+		return nil, fmt.Errorf("error upgrading to WebSocket: %v", err)
+	}
+
 	ls.mu.Lock()
 	ls.clients[ws] = true
 	ls.mu.Unlock()
+	fmt.Printf("Client connected: %p\n", ws)
+	ls.connectChan <- ws
 
-	fmt.Println("Client connected, sending logs through WebSocket")
-	ls.connectChan <- true // Notify that a client has connected
+	go ls.handleMessages(ws)
 
-	// Send existing logs to the new client
-	ls.mu.Lock()
-	for _, entry := range ls.logs {
-		if err := ws.WriteJSON(entry); err != nil {
-			fmt.Printf("Error sending existing log to client: %v\n", err)
-			ws.Close()
-			ls.mu.Unlock()
-			ls.mu.Lock()
-			delete(ls.clients, ws)
-			ls.mu.Unlock()
-			return
-		}
-	}
-	ls.mu.Unlock()
+	return ws, nil
+}
 
-	// Listen for incoming log entries and broadcast them to clients
+func (ls *LogStore) handleMessages(ws *websocket.Conn) {
+	defer func() {
+		// Ensure cleanup on disconnect
+		ls.mu.Lock()
+		delete(ls.clients, ws)
+		ls.mu.Unlock()
+		ls.disconnectChan <- ws // Notify of disconnection
+		// ws.Close()              // Close the WebSocket connection
+		log.Printf("Client disconnected: %p\n", ws)
+	}()
+
 	for {
-		select {
-		case logEntry := <-ls.broadcast:
-			ls.mu.Lock()
-			for client := range ls.clients {
-				err := client.WriteJSON(logEntry)
-				if err != nil {
-					fmt.Printf("Error sending log to client: %v\n", err)
-					client.Close()
-					delete(ls.clients, client)
-				}
-			}
-			ls.mu.Unlock()
-		case <-r.Context().Done():
-			fmt.Println("Connection closed")
-			ls.mu.Lock()
-			delete(ls.clients, ws)
-			ls.mu.Unlock()
+		// Monitor for messages or connection closure
+		messageType, _, err := ws.ReadMessage()
+		if err != nil || messageType == websocket.CloseMessage {
 			return
 		}
 	}
 }
 
-// PrintLogs method for debugging purposes
-func (ls *LogStore) PrintLogs() {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
+func (ls *LogStore) GetDisconnectChan() chan *websocket.Conn {
+	return ls.disconnectChan
+}
 
-	fmt.Printf("Here are the logs stored (Total: %d):\n", len(ls.logs))
-	for _, entry := range ls.logs {
-		timestamp := time.Unix(0, entry.Timestamp)
-		formattedTimestamp := timestamp.Format("15:04:05.000000")
-		fmt.Printf("Timestamp: %s, State: %v, ID: %d, Args: %v\n", formattedTimestamp, entry.State, entry.ID, entry.Args)
-	}
+func (ls *LogStore) GetConnectChan() chan *websocket.Conn {
+	return ls.connectChan
 }

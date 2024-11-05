@@ -5,6 +5,8 @@ import (
 	"main/logstore"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const DebugRF = 1
@@ -78,6 +80,7 @@ type Raft struct {
 	// sending new AEs to followers when interesting changes occurred.
 	triggerAEChan chan struct{}
 	logs          *logstore.LogStore
+	wsConn        *websocket.Conn
 }
 
 // HELPER FUNCS
@@ -127,11 +130,10 @@ func (rf *Raft) Kill() {
 	close(rf.newCommitReadyChan)
 }
 
-// dlog logs a debugging message if DebugRF > 0.
 func (rf *Raft) dlog(format string, args ...any) {
 	if DebugRF > 0 {
 		formattedMsg := fmt.Sprintf("[%d] ", rf.id) + fmt.Sprintf(format, args...)
-		rf.logs.AddLog(logstore.Raft, rf.id, formattedMsg)
+		rf.logs.AddLog(rf.wsConn, logstore.Raft, rf.id, formattedMsg)
 	}
 }
 
@@ -143,7 +145,7 @@ func (rf *Raft) dlog(format string, args ...any) {
 // tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
-func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore) *Raft {
+func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore, wsConn *websocket.Conn) *Raft {
 	rf := new(Raft)
 	rf.id = id
 	rf.peerIds = peerIds
@@ -159,6 +161,7 @@ func Make(id int, peerIds []int, server *Server, storage Storage, ready <-chan a
 	rf.nextIndex = make(map[int]int)
 	rf.matchIndex = make(map[int]int)
 	rf.logs = logs
+	rf.wsConn = wsConn
 
 	if rf.storage.HasData() {
 		rf.restoreFromStorage()
