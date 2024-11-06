@@ -4,15 +4,13 @@ package raft
 import (
 	"fmt"
 	"log"
-	"main/logstore"
+	"main/client"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 type Server struct {
@@ -31,12 +29,13 @@ type Server struct {
 	commitChan  chan<- CommitEntry
 	peerClients map[int]*rpc.Client
 
-	ready <-chan any
-	quit  chan any
-	wg    sync.WaitGroup
+	ready  <-chan any
+	quit   chan any
+	wg     sync.WaitGroup
+	client *client.Client
 }
 
-func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, logs *logstore.LogStore, wsConn *websocket.Conn) *Server {
+func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, c *client.Client) *Server {
 	s := new(Server)
 	s.serverId = serverId
 	s.peerIds = peerIds
@@ -45,10 +44,11 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 	s.ready = ready
 	s.commitChan = commitChan
 	s.quit = make(chan any)
+	s.client = c
 	defer func() {
 		s.mu.Lock()
 		s.mu.Unlock()
-		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, logs, wsConn)
+		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, c)
 	}()
 	return s
 }

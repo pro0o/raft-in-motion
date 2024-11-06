@@ -1,3 +1,4 @@
+// kv/client/client.go
 package client
 
 import (
@@ -5,13 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"main/client"
 	"main/kv/types"
-	"main/logstore"
 	"net/http"
 	"sync/atomic"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 const DebugClient = 1
@@ -22,19 +21,17 @@ type KVClient struct {
 	addrs         []string // List of service addresses (host:port format)
 	assumedLeader int      // Index of the assumed leader in the cluster (starts at 0 by default)
 	clientID      int32    // Unique identifier for the client, incremented for each new client instance
-	logs          *logstore.LogStore
-	wsConn        *websocket.Conn
+	client        *client.Client
 }
 
 // New creates a new KVClient instance. It accepts a list of service addresses (serviceAddrs),
 // which is the set of servers in the key-value service cluster that the client will communicate with.
-func New(serviceAddrs []string, logs *logstore.LogStore, wsConn *websocket.Conn) *KVClient {
+func New(serviceAddrs []string, c *client.Client) *KVClient {
 	return &KVClient{
 		addrs:         serviceAddrs,
 		assumedLeader: 0,
 		clientID:      clientCount.Add(1), // Atomically increment the client count
-		logs:          logs,
-		wsConn:        wsConn,
+		client:        c,
 	}
 }
 
@@ -112,10 +109,10 @@ FindLeader:
 	}
 }
 
-func (c *KVClient) clientlog(format string, args ...any) {
+func (cl *KVClient) clientlog(format string, args ...any) {
 	if DebugClient > 0 {
-		formattedMsg := fmt.Sprintf("[%d] ", c.clientID) + fmt.Sprintf(format, args...)
-		c.logs.AddLog(c.wsConn, logstore.Client, int(c.clientID), formattedMsg)
+		formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
+		cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
 	}
 }
 
