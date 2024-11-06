@@ -9,12 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	clit "main/client"
 	"main/kv/client"
 	"main/kv/server"
-	"main/logstore"
 	"main/raft"
-
-	"github.com/gorilla/websocket"
 )
 
 func init() {
@@ -50,12 +48,12 @@ type Harness struct {
 	alive          []bool
 	ctx            context.Context
 	ctxCancel      func()
-	clientID       string
+	c              *clit.Client
 }
 
 var portManager = NewPortManager(14200)
 
-func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness {
+func NewHarness(n int, c *clit.Client) *Harness {
 	log.Printf("new harness being created...")
 	kvss := make([]*server.KVService, n)
 	ready := make(chan any)
@@ -65,8 +63,6 @@ func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness
 
 	// Get unique ports for this client's cluster
 	ports := portManager.NextPortRange(n)
-	clientID := fmt.Sprintf("%p", wsConn)
-	log.Printf("Creating new harness for client %s with ports %v", clientID, ports)
 
 	// Create all KVService instances in this cluster.
 	for i := range n {
@@ -78,7 +74,7 @@ func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness
 		}
 
 		storage[i] = raft.NewMapStorage()
-		kvss[i] = server.New(i, peerIds, storage[i], ready, logs, wsConn)
+		kvss[i] = server.New(i, peerIds, storage[i], ready, c)
 		alive[i] = true
 	}
 
@@ -98,7 +94,6 @@ func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness
 	for i := range n {
 		kvss[i].ServeHTTP(ports[i])
 		kvServiceAddrs[i] = fmt.Sprintf("localhost:%d", ports[i])
-		log.Printf("[%s] Server %d listening on %s", clientID, i, kvServiceAddrs[i])
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -112,14 +107,13 @@ func NewHarness(n int, logs *logstore.LogStore, wsConn *websocket.Conn) *Harness
 		storage:        storage,
 		ctx:            ctx,
 		ctxCancel:      ctxCancel,
-		clientID:       clientID,
+		c:              c,
 	}
 	log.Printf("new harness has been created")
 	return h
 }
 
 func (h *Harness) Shutdown() {
-	log.Printf("[%s] Shutting down harness", h.clientID)
 	for i := range h.n {
 		h.kvCluster[i].DisconnectFromAllRaftPeers()
 		h.connected[i] = false
@@ -132,20 +126,23 @@ func (h *Harness) Shutdown() {
 		if h.alive[i] {
 			h.alive[i] = false
 			if err := h.kvCluster[i].Shutdown(); err != nil {
-				log.Printf("[%s] Error shutting down server %d: %v", h.clientID, i, err)
+				log.Printf("[%d] Error shutting down server: %v", i, err)
+			} else {
+				log.Printf("Server %d shut down successfully", i)
 			}
 		}
 	}
+	log.Printf("Shutdown complete for Harness %p", h)
 }
 
-func (h *Harness) NewClient(logs *logstore.LogStore, wsConn *websocket.Conn) *client.KVClient {
+func (h *Harness) NewClient(c *clit.Client) *client.KVClient {
 	var addrs []string
 	for i := range h.n {
 		if h.alive[i] {
 			addrs = append(addrs, h.kvServiceAddrs[i])
 		}
 	}
-	return client.New(addrs, logs, wsConn)
+	return client.New(addrs, c)
 }
 
 func (h *Harness) CheckSingleLeader() int {
@@ -173,7 +170,7 @@ func (h *Harness) CheckPut(c *client.KVClient, key, value string) (string, bool)
 	defer cancel()
 	pv, f, err := c.Put(ctx, key, value)
 	if err != nil {
-		log.Printf("[%s] Put error: %v", h.clientID, err)
+		log.Printf("Put error: %v", err)
 		return pv, f
 	}
 	return pv, f
@@ -184,15 +181,15 @@ func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 	defer cancel()
 	gv, f, err := c.Get(ctx, key)
 	if err != nil {
-		log.Printf("[%s] Get error: %v", h.clientID, err)
+		log.Printf("Get error: %v", err)
 		return
 	}
 	if !f {
-		log.Printf("[%s] Key not found: %s", h.clientID, key)
+		log.Printf("Key not found: %s", key)
 		return
 	}
 	if gv != wantValue {
-		log.Printf("[%s] Value mismatch for key %s: got %s, want %s", h.clientID, key, gv, wantValue)
+		log.Printf("Value mismatch for key %s: got %s, want %s", key, gv, wantValue)
 		return
 	}
 }

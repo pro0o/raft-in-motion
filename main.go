@@ -1,99 +1,72 @@
+// main.go
 package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"main/logstore"
+	"main/client"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-func handleClient(ws *websocket.Conn, logs *logstore.LogStore, wg *sync.WaitGroup) {
-	defer func() {
-		wg.Done()
-		// ws.Close() // Ensure websocket is properly closed
-	}()
-	log.Printf("hello from handleClient()")
-	h := NewHarness(3, logs, ws)
-	c1 := h.NewClient(logs, ws)
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
-	ctx, cancel := context.WithTimeout(h.ctx, 5000*time.Millisecond)
-	defer cancel()
-
-	// Using blank identifier for unused returns
-	_, _, err := c1.Get(ctx, "key")
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error in Get operation for client %p: %v", ws, err)
+		log.Println("Upgrade error:", err)
 		return
 	}
 
-	// Create done channel for graceful shutdown
-	done := make(chan struct{})
-	defer close(done)
+	c := &client.Client{
+		Conn:   conn,
+		Send:   make(chan client.LogEntry),
+		Closed: make(chan bool),
+	}
 
-	// Handle client disconnection in a separate goroutine
+	client.LogClientConnection(true)
+
+	h := NewHarness(3, c)
+	c1 := h.NewClient(c)
+
+	// defer func() {
+	// 	h.Shutdown()
+	// 	client.CleanUp(c)
+	// }()
+
+	go client.ReadLoop(c)
+	go client.WriteLoop(c)
+
 	go func() {
-		select {
-		case <-done:
+		ctx, cancel := context.WithTimeout(h.ctx, 5*time.Second)
+		defer cancel()
+
+		_, _, err := c1.Get(ctx, "key")
+		if err != nil {
+			log.Printf("Error in Get operation for client %p: %v", c, err)
 			return
-		case disconnectedWs := <-logs.GetDisconnectChan():
-			if disconnectedWs == ws {
-				log.Printf("Client %p has disconnected. Shutting down client handler...", ws)
-				h.Shutdown() // Call shutdown when the client disconnects
-				return
-			}
 		}
+
+		log.Printf("Get operation succeeded for client %p", c)
+	}()
+
+	// Handle WebSocket connection closure.
+	go func() {
+		<-c.Closed
+		log.Printf("Client %p disconnected", c)
+		h.Shutdown()
+		client.CleanUp(c)
 	}()
 }
 
 func main() {
-	logs := logstore.NewLogStore()
-	var wg sync.WaitGroup
-
-	// Create server shutdown channel
-	serverShutdown := make(chan struct{})
-
-	// Start HTTP server in a separate goroutine
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-			ws, err := logs.HandleConnections(w, r)
-			log.Printf("hello from go http start server")
-			if err != nil {
-				log.Println("Failed to establish WebSocket connection:", err)
-				return
-			}
-			log.Printf("New WebSocket connection established: %p\n", ws)
-		})
-
-		server := &http.Server{
-			Addr:    ":8080",
-			Handler: mux,
-		}
-
-		fmt.Println("WebSocket server started at ws://localhost:8080/ws")
-
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("ListenAndServe error: %v\n", err)
-		}
-	}()
-
-	// Handle new client connections in the main loop
-	connectChan := logs.GetConnectChan()
-	for {
-		select {
-		case ws := <-connectChan:
-			log.Printf("Starting handler for client: %p\n", ws)
-			wg.Add(1)
-			go handleClient(ws, logs, &wg)
-		case <-serverShutdown:
-			log.Println("Server shutting down...")
-			wg.Wait()
-			return
-		}
+	http.HandleFunc("/ws", handleWebSocket)
+	log.Println("WS Server started on :8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal("ListenAndServe error:", err)
 	}
 }
