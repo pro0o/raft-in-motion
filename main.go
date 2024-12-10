@@ -1,14 +1,16 @@
-// main.go
 package main
 
 import (
 	"context"
-	"log"
-	"main/client"
 	"net/http"
+	"os"
 	"time"
 
+	"main/client"
+
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var upgrader = websocket.Upgrader{
@@ -18,7 +20,7 @@ var upgrader = websocket.Upgrader{
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Upgrade error:", err)
+		log.Error().Err(err).Msg("Upgrade error")
 		return
 	}
 
@@ -33,11 +35,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h := NewHarness(3, c)
 	c1 := h.NewClient(c)
 
-	// defer func() {
-	// 	h.Shutdown()
-	// 	client.CleanUp(c)
-	// }()
-
 	go client.ReadLoop(c)
 	go client.WriteLoop(c)
 
@@ -47,26 +44,30 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		_, _, err := c1.Get(ctx, "key")
 		if err != nil {
-			log.Printf("Error in Get operation for client %p: %v", c, err)
+			log.Error().Err(err).Msgf("Error in Get operation for client %p", c)
 			return
 		}
 
-		log.Printf("Get operation succeeded for client %p", c)
+		log.Info().Msgf("Get operation succeeded for client %p", c)
 	}()
 
-	// Handle WebSocket connection closure.
 	go func() {
 		<-c.Closed
-		log.Printf("Client %p disconnected", c)
+		log.Info().Msgf("Client %p disconnected", c)
 		h.Shutdown()
 		client.CleanUp(c)
 	}()
 }
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "3:04:05PM"})
+
 	http.HandleFunc("/ws", handleWebSocket)
-	log.Println("WS Server started on :8080")
+	log.Info().Msg("WS Server started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal("ListenAndServe error:", err)
+		log.Fatal().Err(err).Msg("ListenAndServe error")
 	}
 }

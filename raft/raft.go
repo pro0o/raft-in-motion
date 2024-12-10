@@ -104,12 +104,12 @@ func (rf *Raft) Report() (id int, term int, isLeader bool) {
 // is submitted. Otherwise, it returns -1
 func (rf *Raft) Submit(command any) int {
 	rf.mu.Lock()
-	rf.dlog("Submit received by %v: %v", rf.state, command)
+	// rf.dlog("Submit received by %v: %v", rf.state, command)
 	if rf.state == Leader {
 		submitIndex := len(rf.log)
 		rf.log = append(rf.log, LogEntry{Command: command, Term: rf.currentTerm})
 		rf.persistToStorage()
-		rf.dlog("... log=%v", rf.log)
+		// rf.dlog("... log=%v", rf.log)
 		rf.mu.Unlock()
 		rf.triggerAEChan <- struct{}{}
 		return submitIndex

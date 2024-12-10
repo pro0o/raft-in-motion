@@ -1,20 +1,19 @@
-// main/client/client.go
 package client
 
 import (
-	"log"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
 type Client struct {
-	Conn         *websocket.Conn
-	Send         chan LogEntry
-	Closed       chan bool
-	Once         sync.Once
-	Disconnected bool // Track if the client is disconnected
+	Conn   *websocket.Conn
+	Send   chan LogEntry
+	Closed chan bool
+	Once   sync.Once
+	State  ClientState
 }
 
 type LogState string
@@ -32,6 +31,14 @@ type LogEntry struct {
 	Timestamp int64    `json:"timestamp"`
 }
 
+type ClientState int
+
+const (
+	Active ClientState = iota
+	Disconnected
+	Closed
+)
+
 var activeClients = 0
 var mu sync.Mutex
 
@@ -41,9 +48,11 @@ func LogClientConnection(connected bool) {
 	if connected {
 		activeClients++
 	} else {
-		activeClients--
+		if activeClients > 0 {
+			activeClients--
+		}
 	}
-	log.Printf("Clients connected: %d", activeClients)
+	log.Info().Msgf("Clients connected: %d", activeClients)
 }
 
 func ReadLoop(c *Client) {
@@ -51,8 +60,8 @@ func ReadLoop(c *Client) {
 	for {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
-			log.Printf("Client read error: %v", err)
-			c.Disconnected = true
+			log.Error().Err(err).Msg("Client read error")
+			c.State = Disconnected
 			break
 		}
 	}
@@ -63,25 +72,25 @@ func WriteLoop(c *Client) {
 	for {
 		select {
 		case logEntry := <-c.Send:
-			if c.Disconnected {
-				log.Println("Client is disconnected, not sending log entry.")
+			if c.State == Disconnected || c.State == Closed {
+				log.Warn().Msg("Client is disconnected or closed, not sending log entry.")
 				return
 			}
 
 			if err := c.Conn.WriteJSON(logEntry); err != nil {
-				log.Printf("Error sending log to client: %v\n", err)
+				log.Error().Err(err).Msg("Error sending log to client")
 				return
 			}
 		case <-c.Closed:
-			log.Println("Connection closed for client")
+			log.Warn().Msg("Connection closed for client")
 			return
 		}
 	}
 }
 
 func (c *Client) AddLog(state LogState, id int, args ...any) {
-	if c.Disconnected {
-		log.Println("Client is disconnected, not adding log entry.")
+	if c.State == Disconnected || c.State == Closed {
+		log.Warn().Msg("Client is disconnected or closed, not adding log entry.")
 		return
 	}
 
@@ -95,7 +104,7 @@ func (c *Client) AddLog(state LogState, id int, args ...any) {
 	select {
 	case c.Send <- logEntry:
 	case <-time.After(2 * time.Second):
-		log.Printf("Warning: log entry for client could not be sent immediately (timeout)")
+		log.Warn().Msg("Warning: log entry for client could not be sent immediately (timeout)")
 	}
 }
 
@@ -103,8 +112,9 @@ func CleanUp(c *Client) {
 	c.Once.Do(func() {
 		close(c.Closed)
 		if err := c.Conn.Close(); err != nil {
-			log.Printf("Error closing connection: %v", err)
+			log.Error().Err(err).Msg("Error closing connection")
 		}
 		LogClientConnection(false)
+		c.State = Closed
 	})
 }

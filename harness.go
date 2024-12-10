@@ -1,10 +1,8 @@
-// harness.go
-package kv
+package main
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -13,11 +11,9 @@ import (
 	"main/kv/client"
 	"main/kv/server"
 	"main/raft"
-)
 
-func init() {
-	log.SetFlags(log.Ltime | log.Lmicroseconds)
-}
+	"github.com/rs/zerolog/log"
+)
 
 // PortManager manages port allocation for multiple clients
 type PortManager struct {
@@ -54,7 +50,7 @@ type Harness struct {
 var portManager = NewPortManager(14200)
 
 func NewHarness(n int, c *clit.Client) *Harness {
-	log.Printf("new harness being created...")
+	log.Info().Msg("Creating new harness...")
 	kvss := make([]*server.KVService, n)
 	ready := make(chan any)
 	connected := make([]bool, n)
@@ -65,9 +61,9 @@ func NewHarness(n int, c *clit.Client) *Harness {
 	ports := portManager.NextPortRange(n)
 
 	// Create all KVService instances in this cluster.
-	for i := range n {
+	for i := range kvss {
 		peerIds := make([]int, 0)
-		for p := range n {
+		for p := range kvss {
 			if p != i {
 				peerIds = append(peerIds, p)
 			}
@@ -79,8 +75,8 @@ func NewHarness(n int, c *clit.Client) *Harness {
 	}
 
 	// Connect the Raft peers of the services to each other
-	for i := range n {
-		for j := range n {
+	for i := range kvss {
+		for j := range kvss {
 			if i != j {
 				kvss[i].ConnectToRaftPeer(j, kvss[j].GetRaftListenAddr())
 			}
@@ -91,7 +87,7 @@ func NewHarness(n int, c *clit.Client) *Harness {
 
 	// Each KVService instance serves a REST API on a different port
 	kvServiceAddrs := make([]string, n)
-	for i := range n {
+	for i := range kvss {
 		kvss[i].ServeHTTP(ports[i])
 		kvServiceAddrs[i] = fmt.Sprintf("localhost:%d", ports[i])
 	}
@@ -109,12 +105,12 @@ func NewHarness(n int, c *clit.Client) *Harness {
 		ctxCancel:      ctxCancel,
 		c:              c,
 	}
-	log.Printf("new harness has been created")
+	log.Info().Msg("New harness created")
 	return h
 }
 
 func (h *Harness) Shutdown() {
-	for i := range h.n {
+	for i := range h.kvCluster {
 		h.kvCluster[i].DisconnectFromAllRaftPeers()
 		h.connected[i] = false
 	}
@@ -122,22 +118,22 @@ func (h *Harness) Shutdown() {
 	http.DefaultClient.CloseIdleConnections()
 	h.ctxCancel()
 
-	for i := range h.n {
+	for i := range h.kvCluster {
 		if h.alive[i] {
 			h.alive[i] = false
 			if err := h.kvCluster[i].Shutdown(); err != nil {
-				log.Printf("[%d] Error shutting down server: %v", i, err)
+				log.Error().Err(err).Msgf("[%d] Error shutting down server", i)
 			} else {
-				log.Printf("Server %d shut down successfully", i)
+				log.Info().Msgf("Server %d shut down successfully", i)
 			}
 		}
 	}
-	log.Printf("Shutdown complete for Harness %p", h)
+	log.Info().Msgf("Shutdown complete for Harness %p", h)
 }
 
 func (h *Harness) NewClient(c *clit.Client) *client.KVClient {
 	var addrs []string
-	for i := range h.n {
+	for i := range h.kvCluster {
 		if h.alive[i] {
 			addrs = append(addrs, h.kvServiceAddrs[i])
 		}
@@ -148,7 +144,7 @@ func (h *Harness) NewClient(c *clit.Client) *client.KVClient {
 func (h *Harness) CheckSingleLeader() int {
 	for r := 0; r < 8; r++ {
 		leaderId := -1
-		for i := range h.n {
+		for i := range h.kvCluster {
 			if h.connected[i] && h.kvCluster[i].IsLeader() {
 				if leaderId < 0 {
 					leaderId = i
@@ -170,7 +166,7 @@ func (h *Harness) CheckPut(c *client.KVClient, key, value string) (string, bool)
 	defer cancel()
 	pv, f, err := c.Put(ctx, key, value)
 	if err != nil {
-		log.Printf("Put error: %v", err)
+		log.Error().Err(err).Msg("Put error")
 		return pv, f
 	}
 	return pv, f
@@ -181,15 +177,14 @@ func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 	defer cancel()
 	gv, f, err := c.Get(ctx, key)
 	if err != nil {
-		log.Printf("Get error: %v", err)
+		log.Error().Err(err).Msg("Get error")
 		return
 	}
 	if !f {
-		log.Printf("Key not found: %s", key)
+		log.Warn().Msgf("Key not found: %s", key)
 		return
 	}
 	if gv != wantValue {
-		log.Printf("Value mismatch for key %s: got %s, want %s", key, gv, wantValue)
-		return
+		log.Warn().Msgf("Value mismatch for key %s: got %s, want %s", key, gv, wantValue)
 	}
 }

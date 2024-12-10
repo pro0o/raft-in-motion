@@ -40,9 +40,9 @@ function displayLogEntry(logEntry) {
 
 function getLogStateName(state) {
     switch (state) {
-        case 0: return "KV";
-        case 1: return "Raft";
-        case 2: return "Client";
+        case 'KV': return "KV";
+        case 'Raft': return "Raft";
+        case 'Client': return "Client";
         default: return "Unknown";
     }
 }

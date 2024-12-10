@@ -76,7 +76,7 @@ FindLeader:
 		if err := sendJSONRequest(retryCtx, path, req, resp); err != nil {
 			// Check if the parent context is done and exit if it is.
 			if contextDone(ctx) {
-				c.clientlog("parent context done; bailing out")
+				c.clientlog("parent context done; ballin' out")
 				retryCtxCancel()
 				return err
 			} else if contextDeadlineExceeded(retryCtx) {
@@ -111,8 +111,8 @@ FindLeader:
 
 func (cl *KVClient) clientlog(format string, args ...any) {
 	if DebugClient > 0 {
-		formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
-		cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
+		// formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
+		// cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
 	}
 }
 

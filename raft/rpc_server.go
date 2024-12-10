@@ -3,7 +3,6 @@ package raft
 
 import (
 	"fmt"
-	"log"
 	"main/client"
 	"math/rand"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Server struct {
@@ -62,9 +63,9 @@ func (s *Server) Serve() {
 	var err error
 	s.listener, err = net.Listen("tcp", ":0")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msgf("Failed to start listener")
 	}
-	log.Printf("[%v] listening at %s", s.serverId, s.listener.Addr())
+	log.Info().Int("serverId", s.serverId).Str("addr", s.listener.Addr().String()).Msg("Listening")
 	s.mu.Unlock()
 
 	s.wg.Add(1)
@@ -78,7 +79,7 @@ func (s *Server) Serve() {
 				case <-s.quit:
 					return
 				default:
-					log.Fatal("accept error:", err)
+					log.Fatal().Err(err).Msg("Accept error")
 				}
 			}
 			s.wg.Add(1)
@@ -130,13 +131,15 @@ func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 	}
 	return nil
 }
-
 func (s *Server) DisconnectPeer(peerId int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.peerClients[peerId] != nil {
 		err := s.peerClients[peerId].Close()
 		s.peerClients[peerId] = nil
+		if err != nil {
+			log.Error().Err(err).Int("peerId", peerId).Msg("Failed to disconnect peer")
+		}
 		return err
 	}
 	return nil
@@ -148,12 +151,12 @@ func (s *Server) Call(id int, serviceMethod string, args any, reply any) error {
 	s.mu.Unlock()
 
 	if peer == nil {
+		log.Error().Int("clientId", id).Msg("Call client after it's closed")
 		return fmt.Errorf("call client %d after it's closed", id)
 	} else {
 		return s.rpcProxy.Call(peer, serviceMethod, args, reply)
 	}
 }
-
 func (s *Server) IsLeader() bool {
 	_, _, isLeader := s.rf.Report()
 	return isLeader
@@ -186,10 +189,10 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.dlog("drop RequestVote")
+			// rpp.rf.dlog("drop RequestVote")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.dlog("delay RequestVote")
+			// rpp.rf.dlog("delay RequestVote")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
@@ -202,10 +205,10 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		if dice == 9 {
-			rpp.rf.dlog("drop AppendEntries")
+			// rpp.rf.dlog("drop AppendEntries")
 			return fmt.Errorf("RPC failed")
 		} else if dice == 8 {
-			rpp.rf.dlog("delay AppendEntries")
+			// rpp.rf.dlog("delay AppendEntries")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
@@ -218,7 +221,7 @@ func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) 
 	rpp.mu.Lock()
 	if rpp.numCallsBeforeDrop == 0 {
 		rpp.mu.Unlock()
-		rpp.rf.dlog("drop Call %s: %v", method, args)
+		// rpp.rf.dlog("drop Call %s: %v", method, args)
 		return fmt.Errorf("RPC failed")
 	} else {
 		if rpp.numCallsBeforeDrop > 0 {

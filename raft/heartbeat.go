@@ -239,10 +239,10 @@ func (rf *Raft) commitChanSender() {
 			rf.lastApplied = rf.commitIndex
 		}
 		rf.mu.Unlock()
-		rf.dlog("commitChanSender entries=%v, savedLastApplied=%d", entries, savedLastApplied)
+		// rf.dlog("commitChanSender entries=%v, savedLastApplied=%d", entries, savedLastApplied)
 
 		for i, entry := range entries {
-			rf.dlog("send on commitchan i=%v, entry=%v", i, entry)
+			// rf.dlog("send on commitchan i=%v, entry=%v", i, entry)
 			rf.commitChan <- CommitEntry{
 				Command: entry.Command,
 				Index:   savedLastApplied + i + 1,
@@ -250,5 +250,5 @@ func (rf *Raft) commitChanSender() {
 			}
 		}
 	}
-	rf.dlog("commitChanSender done")
+	// rf.dlog("commitChanSender done")
 }

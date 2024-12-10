@@ -34,13 +34,13 @@ func (rf *Raft) runElectionTimer() {
 
 		rf.mu.Lock()
 		if rf.state != Candidate && rf.state != Follower {
-			rf.dlog("in election timer state=%s, bailing out", rf.state)
+			rf.dlog("in election timer state=%s, ballin' out", rf.state)
 			rf.mu.Unlock()
 			return
 		}
 
 		if termStarted != rf.currentTerm {
-			rf.dlog("in election timer term changed from %d to %d, bailing out", termStarted, rf.currentTerm)
+			rf.dlog("in election timer term changed from %d to %d, ballin' out", termStarted, rf.currentTerm)
 			rf.mu.Unlock()
 			return
 		}
