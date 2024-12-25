@@ -25,7 +25,8 @@ type KVClient struct {
 }
 
 // New creates a new KVClient instance. It accepts a list of service addresses (serviceAddrs),
-// which is the set of servers in the key-value service cluster that the client will communicate with.
+// which is the set of servers in the key-value service cluster that the client will
+// communicate with.
 func New(serviceAddrs []string, c *client.Client) *KVClient {
 	return &KVClient{
 		addrs:         serviceAddrs,
@@ -63,25 +64,24 @@ func (c *KVClient) Get(ctx context.Context, key string) (string, bool, error) {
 
 // send handles communication with the key-value service, sending a request to the assumed leader.
 // It retries with different service addresses if the current leader assumption is incorrect.
-// The `route` argument is the API endpoint (like "put" or "get"), `req` is the request data, and `resp` is where the response is unmarshalled into.
+// The `route` argument is the API endpoint (like "put" or "get"), `req` is the request data,
+// and `resp` is where the response is unmarshalled into.
 func (c *KVClient) send(ctx context.Context, route string, req any, resp types.Response) error {
-	// FindLeader loop: tries contacting servers until the actual leader is found or the request fails.
 FindLeader:
 	for {
 		// Create a context with a short timeout for each retry, while observing the parent context.
 		retryCtx, retryCtxCancel := context.WithTimeout(ctx, 50*time.Millisecond)
 		path := fmt.Sprintf("http://%s/%s/", c.addrs[c.assumedLeader], route)
 
-		c.clientlog("sending %#v to %v", req, path)
+		c.clientlog("Sending request to %s: req=%v", path, req)
+
 		if err := sendJSONRequest(retryCtx, path, req, resp); err != nil {
-			// Check if the parent context is done and exit if it is.
 			if contextDone(ctx) {
-				c.clientlog("parent context done; ballin' out")
+				c.clientlog("Parent context canceled or deadline exceeded; exiting")
 				retryCtxCancel()
 				return err
 			} else if contextDeadlineExceeded(retryCtx) {
-				// If the retry context timed out, try the next service in the list.
-				c.clientlog("timed out: will try next address")
+				c.clientlog("Timed out contacting %s; trying next server address", path)
 				c.assumedLeader = (c.assumedLeader + 1) % len(c.addrs)
 				retryCtxCancel()
 				continue FindLeader
@@ -89,15 +89,18 @@ FindLeader:
 			retryCtxCancel()
 			return err
 		}
-		c.clientlog("received response %#v", resp)
+
+		c.clientlog("Received response: resp=%v", resp)
 
 		switch resp.Status() {
 		case types.StatusNotLeader:
-			c.clientlog("not leader: will try next address")
+			c.clientlog("Response indicates not leader; will wait and try next server")
+			time.Sleep(300 * time.Millisecond) // small backoff
 			c.assumedLeader = (c.assumedLeader + 1) % len(c.addrs)
 			retryCtxCancel()
 			continue FindLeader
 		case types.StatusOK:
+			c.clientlog("Found leader at %s (StatusOK).", path)
 			retryCtxCancel()
 			return nil
 		case types.StatusFailedCommit:
@@ -109,15 +112,17 @@ FindLeader:
 	}
 }
 
+// clientlog writes minimal logs if DebugClient > 0.
 func (cl *KVClient) clientlog(format string, args ...any) {
 	if DebugClient > 0 {
-		// formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
-		// cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
+		formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
+		cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
 	}
 }
 
-// sendJSONRequest sends an HTTP POST request with the request data (in JSON format) and decodes the response into respData.
-// It uses the provided context to support request cancellation and timeouts.
+// sendJSONRequest sends an HTTP POST request with the request data (in JSON format)
+// and decodes the response into respData. It uses the provided context to support
+// request cancellation and timeouts.
 func sendJSONRequest(ctx context.Context, path string, reqData any, respData any) error {
 	body := new(bytes.Buffer)
 	enc := json.NewEncoder(body)
@@ -135,6 +140,7 @@ func sendJSONRequest(ctx context.Context, path string, reqData any, respData any
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
 	if err := dec.Decode(respData); err != nil {

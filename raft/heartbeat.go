@@ -1,5 +1,5 @@
 // AE RPC
-// Apending Entries
+// Appending Entries
 package raft
 
 import "time"
@@ -30,40 +30,41 @@ type AppendEntriesReply struct {
 func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+
 	if rf.state == Dead {
 		return nil
 	}
-	rf.dlog("AppendEntries: %+v", args)
 
-	// 1. Reply false if term < currentTerm
+	// 1. If leader’s term is newer than ours, update our term and convert to Follower
 	if args.Term > rf.currentTerm {
-		rf.dlog("... term out of date in AppendEntries")
+		// rf.dlog("AppendEntries: new term detected (ourTerm=%d, leaderTerm=%d). Becoming FOLLOWER.", rf.currentTerm, args.Term)
 		rf.becomeFollower(args.Term)
 	}
 
-	// 2. Reply false if log doesn’t contain an entry at prevLogIndex
-	// whose term matches prevLogTerm
+	// Initialize the default reply (false) with our current term
+	reply.Term = rf.currentTerm
 	reply.Success = false
+
+	// 2. If the leader’s term is the same as ours, remain (or become) a Follower
+	//    and reset the election timer.
 	if args.Term == rf.currentTerm {
 		if rf.state != Follower {
+			rf.dlog("AppendEntries: converting to FOLLOWER in current term=%d.", args.Term)
 			rf.becomeFollower(args.Term)
 		}
 		rf.electionResetEvent = time.Now()
 
-		// 3. If an existing entry conflicts with a new one (same index
-		// but different terms), delete the existing entry and all that
-		// follow it.
-
-		// Check if the log has an entry at PrevLogIndex with a matching PrevLogTerm.
-		// If PrevLogIndex is -1, assume true as no entry exists to compare.
+		// 3. Check if our log has an entry at PrevLogIndex with a matching PrevLogTerm.
+		//    If args.PrevLogIndex == -1, that implies an empty log, so treat as no conflict.
 		if args.PrevLogIndex == -1 ||
 			(args.PrevLogIndex < len(rf.log) && args.PrevLogTerm == rf.log[args.PrevLogIndex].Term) {
+
+			// We have a match. Mark Success = true.
 			reply.Success = true
 			logInsertIndex := args.PrevLogIndex + 1
 			newEntriesIndex := 0
 
-			// The main goal here is to find where the terms in the log mismatch between
-			// the follower and leader entries.
+			// Advance through the common log portion where terms match.
 			for {
 				if logInsertIndex >= len(rf.log) || newEntriesIndex >= len(args.Entries) {
 					break
@@ -74,52 +75,53 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 				logInsertIndex++
 				newEntriesIndex++
 			}
-			// At the end of this loop:
-			// - logInsertIndex points at the end of the log, or an index where the
-			//   term mismatches with an entry from the leader
-			// - newEntriesIndex points at the end of Entries, or an index where the
-			//   term mismatches with the corresponding log entry
+
+			// If we still have new entries to insert, append them to our log after removing
+			// any conflicting entries first.
 			if newEntriesIndex < len(args.Entries) {
-				rf.dlog("... inserting entries %v from index %d", args.Entries[newEntriesIndex:], logInsertIndex)
+				rf.dlog("AppendEntries: inserting entries %v at local index %d", args.Entries[newEntriesIndex:], logInsertIndex)
 				rf.log = append(rf.log[:logInsertIndex], args.Entries[newEntriesIndex:]...)
-				rf.dlog("... log is now: %v", rf.log)
+				// rf.dlog("AppendEntries: local log is now: %v", rf.log)
 			}
 
-			// Set commit index.
+			// 4. Update commitIndex if the leader’s commit is greater than ours.
 			if args.LeaderCommit > rf.commitIndex {
+				oldCommit := rf.commitIndex
 				rf.commitIndex = min(args.LeaderCommit, len(rf.log)-1)
-				rf.dlog("... setting commitIndex=%d", rf.commitIndex)
+				rf.dlog("AppendEntries: updating commitIndex from %d to %d", oldCommit, rf.commitIndex)
 				rf.newCommitReadyChan <- struct{}{}
 			}
+
 		} else {
-			// Conflict detected: set the conflict information to assist the leader
-			// in finding the correct log position quickly.
+			// There is a conflict (either PrevLogIndex out of range or terms do not match).
+			// Provide conflict info for faster conflict resolution.
 			if args.PrevLogIndex >= len(rf.log) {
+				// The leader wants to access an index we do not have.
 				reply.ConflictIndex = len(rf.log)
 				reply.ConflictTerm = -1
+				rf.dlog("AppendEntries: conflict - leader index=%d beyond local log. ConflictIndex=%d.",
+					args.PrevLogIndex, reply.ConflictIndex)
 			} else {
-				// Mismatch in term at PrevLogIndex; populate ConflictTerm and ConflictIndex.
-				reply.ConflictTerm = rf.log[args.PrevLogIndex].Term
-				var i int
-				for i = args.PrevLogIndex - 1; i >= 0; i-- {
-					if rf.log[i].Term != reply.ConflictTerm {
-						break
-					}
+				// Mismatch term at PrevLogIndex
+				conflictTerm := rf.log[args.PrevLogIndex].Term
+				reply.ConflictTerm = conflictTerm
+				i := args.PrevLogIndex - 1
+				for i >= 0 && rf.log[i].Term == conflictTerm {
+					i--
 				}
 				reply.ConflictIndex = i + 1
+				rf.dlog("AppendEntries: conflict - mismatch term at index=%d. ConflictTerm=%d, ConflictIndex=%d.",
+					args.PrevLogIndex, conflictTerm, reply.ConflictIndex)
 			}
 		}
 	}
 
-	reply.Term = rf.currentTerm
 	rf.persistToStorage()
-	rf.dlog("AppendEntries reply: %+v", *reply)
 	return nil
 }
 
-// leaderSendHeartbeats sends a round of heartbeats to all peers, collects their
-// replies and adjusts rf's state.
-// figure 2 of paper, check the Send HEartbeats
+// leaderSendHeartbeats sends a round of heartbeats (AppendEntries with no new log entries)
+// to all peers. It collects replies and updates internal state accordingly.
 func (rf *Raft) leaderSendHeartbeats() {
 	rf.mu.Lock()
 	if rf.state != Leader {
@@ -132,13 +134,13 @@ func (rf *Raft) leaderSendHeartbeats() {
 	for _, peerId := range rf.peerIds {
 		go func(peerId int) {
 			rf.mu.Lock()
-			ni := rf.nextIndex[peerId]
-			prevLogIndex := ni - 1
+			nextIndexForPeer := rf.nextIndex[peerId]
+			prevLogIndex := nextIndexForPeer - 1
 			prevLogTerm := -1
 			if prevLogIndex >= 0 {
 				prevLogTerm = rf.log[prevLogIndex].Term
 			}
-			entries := rf.log[ni:]
+			entries := rf.log[nextIndexForPeer:]
 
 			args := AppendEntriesArgs{
 				Term:         savedCurrentTerm,
@@ -149,32 +151,34 @@ func (rf *Raft) leaderSendHeartbeats() {
 				LeaderCommit: rf.commitIndex,
 			}
 			rf.mu.Unlock()
-			rf.dlog("sending AppendEntries to %v: ni=%d, args=%+v", peerId, ni, args)
+
 			var reply AppendEntriesReply
+			// Send the AppendEntries RPC as a heartbeat or log replication
 			if err := rf.server.Call(peerId, "Raft.AppendEntries", args, &reply); err == nil {
 				rf.mu.Lock()
-				// Unfortunately, we cannot just defer mu.Unlock() here, because one
-				// of the conditional paths needs to send on some channels. So we have
-				// to carefully place mu.Unlock() on all exit paths from this point
-				// on.
+				defer rf.mu.Unlock()
+
+				// If a higher term is found, revert to follower
 				if reply.Term > rf.currentTerm {
-					rf.dlog("term out of date in heartbeat reply")
+					rf.dlog("Heartbeat reply from %d indicates newer term=%d; converting to FOLLOWER.", peerId, reply.Term)
 					rf.becomeFollower(reply.Term)
-					rf.mu.Unlock()
 					return
 				}
 
+				// If we’re still the leader in this term, process the results
 				if rf.state == Leader && savedCurrentTerm == reply.Term {
 					if reply.Success {
-						rf.nextIndex[peerId] = ni + len(entries)
+						// Update nextIndex and matchIndex upon successful replication
+						rf.nextIndex[peerId] = nextIndexForPeer + len(entries)
 						rf.matchIndex[peerId] = rf.nextIndex[peerId] - 1
 
-						savedCommitIndex := rf.commitIndex
+						// Attempt to advance commitIndex if a new majority forms
+						oldCommitIndex := rf.commitIndex
 						for i := rf.commitIndex + 1; i < len(rf.log); i++ {
 							if rf.log[i].Term == rf.currentTerm {
-								matchCount := 1
-								for _, peerId := range rf.peerIds {
-									if rf.matchIndex[peerId] >= i {
+								matchCount := 1 // include leader’s own match
+								for _, pid := range rf.peerIds {
+									if rf.matchIndex[pid] >= i {
 										matchCount++
 									}
 								}
@@ -183,20 +187,15 @@ func (rf *Raft) leaderSendHeartbeats() {
 								}
 							}
 						}
-						rf.dlog("AppendEntries reply from %d success: nextIndex := %v, matchIndex := %v; commitIndex := %d", peerId, rf.nextIndex, rf.matchIndex, rf.commitIndex)
-						if rf.commitIndex != savedCommitIndex {
-							rf.dlog("leader sets commitIndex := %d", rf.commitIndex)
-							// Commit index changed: the leader considers new entries to be
-							// committed. Send new entries on the commit channel to this
-							// leader's clients, and notify followers by sending them AEs.
-							rf.mu.Unlock()
+						if rf.commitIndex != oldCommitIndex {
+							rf.dlog("Leader has a new commitIndex=%d. Broadcasting new commits to peers.", rf.commitIndex)
 							rf.newCommitReadyChan <- struct{}{}
 							rf.triggerAEChan <- struct{}{}
-						} else {
-							rf.mu.Unlock()
 						}
 					} else {
+						// Handle conflict resolution
 						if reply.ConflictTerm >= 0 {
+							// Try to find the last index of ConflictTerm in our log.
 							lastIndexOfTerm := -1
 							for i := len(rf.log) - 1; i >= 0; i-- {
 								if rf.log[i].Term == reply.ConflictTerm {
@@ -209,14 +208,14 @@ func (rf *Raft) leaderSendHeartbeats() {
 							} else {
 								rf.nextIndex[peerId] = reply.ConflictIndex
 							}
+							rf.dlog("Conflict with %d. Updated nextIndex=%d based on conflict term %d.",
+								peerId, rf.nextIndex[peerId], reply.ConflictTerm)
 						} else {
 							rf.nextIndex[peerId] = reply.ConflictIndex
+							rf.dlog("Conflict with %d. Updated nextIndex=%d with no conflictTerm info.",
+								peerId, rf.nextIndex[peerId])
 						}
-						rf.dlog("AppendEntries reply from %d !success: nextIndex := %d", peerId, ni-1)
-						rf.mu.Unlock()
 					}
-				} else {
-					rf.mu.Unlock()
 				}
 			}
 		}(peerId)
@@ -224,31 +223,34 @@ func (rf *Raft) leaderSendHeartbeats() {
 }
 
 // commitChanSender sends committed entries on rf.commitChan by monitoring
-// newCommitReadyChan for new ready entries. It runs in a background goroutine,
+// newCommitReadyChan for newly ready entries. It runs in a background goroutine,
 // and rf.commitChan may be buffered to control the consumption speed.
 // It exits when newCommitReadyChan is closed.
 func (rf *Raft) commitChanSender() {
 	for range rf.newCommitReadyChan {
-		// Find which entries we have to apply.
+		// Gather all entries to apply
 		rf.mu.Lock()
 		savedTerm := rf.currentTerm
 		savedLastApplied := rf.lastApplied
-		var entries []LogEntry
+		var readyEntries []LogEntry
+
 		if rf.commitIndex > rf.lastApplied {
-			entries = rf.log[rf.lastApplied+1 : rf.commitIndex+1]
+			readyEntries = rf.log[rf.lastApplied+1 : rf.commitIndex+1]
 			rf.lastApplied = rf.commitIndex
 		}
 		rf.mu.Unlock()
-		// rf.dlog("commitChanSender entries=%v, savedLastApplied=%d", entries, savedLastApplied)
 
-		for i, entry := range entries {
-			// rf.dlog("send on commitchan i=%v, entry=%v", i, entry)
+		// Send each newly committed entry on commitChan
+		for i, entry := range readyEntries {
+			commitIndex := savedLastApplied + i + 1
 			rf.commitChan <- CommitEntry{
 				Command: entry.Command,
-				Index:   savedLastApplied + i + 1,
+				Index:   commitIndex,
 				Term:    savedTerm,
 			}
+			rf.dlog("commitChanSender: delivered entry at index=%d to commitChan", commitIndex)
 		}
 	}
-	// rf.dlog("commitChanSender done")
+	// When newCommitReadyChan is closed, this goroutine ends
+	rf.dlog("commitChanSender: newCommitReadyChan closed, stopping commit loop.")
 }

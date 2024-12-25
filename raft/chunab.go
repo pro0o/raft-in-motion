@@ -1,4 +1,4 @@
-// ELECTIONN
+// ELECTION
 package raft
 
 import (
@@ -7,8 +7,8 @@ import (
 )
 
 func (rf *Raft) electionTimeout() time.Duration {
+	// Randomized election timeout between 150ms and 300ms
 	return time.Duration(150+rand.Intn(150)) * time.Millisecond
-
 }
 
 // runElectionTimer implements an election timer. It should be launched whenever
@@ -16,38 +16,39 @@ func (rf *Raft) electionTimeout() time.Duration {
 //
 // This function is blocking and should be launched in a separate goroutine;
 // it's designed to work for a single (one-shot) election timer, as it exits
-// whenever the Rf state changes from follower/candidate or the term changes.
+// whenever the Raft state changes from follower/candidate or the term changes.
 func (rf *Raft) runElectionTimer() {
 	timeoutDuration := rf.electionTimeout()
+
 	rf.mu.Lock()
 	termStarted := rf.currentTerm
 	rf.mu.Unlock()
-	rf.dlog("election timer started (%v), term=%d", timeoutDuration, termStarted)
 
-	// while in a follower though, this typically keeps running in the background for the
-	// duration of the Rf's lifetime.
-	// until leader fumbles the baddie
+	rf.dlog("Election timer started (duration: %v), term=%d", timeoutDuration, termStarted)
+
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
+
 	for {
 		<-ticker.C
 
 		rf.mu.Lock()
+		// If the node is neither a Follower nor a Candidate, stop the timer.
 		if rf.state != Candidate && rf.state != Follower {
-			rf.dlog("in election timer state=%s, ballin' out", rf.state)
+			rf.dlog("Exiting election timer because node state is now %s", rf.state)
 			rf.mu.Unlock()
 			return
 		}
 
+		// If term changed, this timer is obsolete; stop it.
 		if termStarted != rf.currentTerm {
-			rf.dlog("in election timer term changed from %d to %d, ballin' out", termStarted, rf.currentTerm)
+			rf.dlog("Election timer term changed from %d to %d, stopping timer", termStarted, rf.currentTerm)
 			rf.mu.Unlock()
 			return
 		}
 
-		// Start an election if we haven't heard from a leader or haven't voted for
-		// someone for the duration of the timeout.
-		if elapsed := time.Since(rf.electionResetEvent); elapsed >= timeoutDuration {
+		// If no leader contact (or no vote) within timeout, start a new election.
+		if time.Since(rf.electionResetEvent) >= timeoutDuration {
 			rf.startElection()
 			rf.mu.Unlock()
 			return
@@ -58,13 +59,14 @@ func (rf *Raft) runElectionTimer() {
 
 func (rf *Raft) startElection() {
 	rf.state = Candidate
-	rf.currentTerm += 1
+	rf.currentTerm++
 	savedCurrentTerm := rf.currentTerm
 	rf.electionResetEvent = time.Now()
 	rf.votedFor = rf.id
-	rf.dlog("becomes Candidate (currentTerm=%d); log=%v", savedCurrentTerm, rf.log)
 
-	votesReceived := 1
+	rf.dlog("Node transitioned to CANDIDATE for term=%d. Current log: %v", savedCurrentTerm, rf.log)
+
+	votesReceived := 1 // Vote for self
 
 	// Send RequestVote RPCs to all other servers concurrently.
 	for _, peerId := range rf.peerIds {
@@ -80,37 +82,41 @@ func (rf *Raft) startElection() {
 				LastLogTerm:  savedLastLogTerm,
 			}
 
-			rf.dlog("sending RequestVote to %d: %+v", peerId, args)
+			rf.dlog("Sending RequestVote to %d: %+v", peerId, args)
 			var reply RequestVoteReply
 			if err := rf.server.Call(peerId, "Raft.RequestVote", args, &reply); err == nil {
 				rf.mu.Lock()
 				defer rf.mu.Unlock()
-				rf.dlog("received RequestVoteReply %+v", reply)
 
+				rf.dlog("Received RequestVoteReply: %+v", reply)
+
+				// If we're no longer a candidate, ignore this reply.
 				if rf.state != Candidate {
-					rf.dlog("while waiting for reply, state = %v", rf.state)
+					rf.dlog("Vote reply ignored because node state is now %v (not Candidate)", rf.state)
 					return
 				}
 
+				// If reply indicates a higher term, revert to follower.
 				if reply.Term > savedCurrentTerm {
-					rf.dlog("term out of date in RequestVoteReply")
+					rf.dlog("Vote reply indicates a higher term (term=%d). Reverting to FOLLOWER.", reply.Term)
 					rf.becomeFollower(reply.Term)
 					return
-				} else if reply.Term == savedCurrentTerm {
-					if reply.VoteGranted {
-						votesReceived += 1
-						if votesReceived*2 > len(rf.peerIds)+1 {
-							// Won the election, burh thherr
-							rf.dlog("wins election with %d votes", votesReceived)
-							rf.startLeader()
-							return
-						}
+				}
+
+				// If same term and vote granted, check if we have a majority.
+				if reply.Term == savedCurrentTerm && reply.VoteGranted {
+					votesReceived++
+					if votesReceived*2 > len(rf.peerIds)+1 {
+						rf.dlog("Node received %d votes (majority) in term=%d. Becoming LEADER.", votesReceived, savedCurrentTerm)
+						rf.startLeader()
+						return
 					}
 				}
 			}
 		}(peerId)
 	}
 
-	// Run another election timer, in case this election is not successful.
+	// If the election isn't decided quickly, we need to start a new timer
+	// to handle the possibility of another election.
 	go rf.runElectionTimer()
 }

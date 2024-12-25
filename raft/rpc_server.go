@@ -36,6 +36,7 @@ type Server struct {
 	client *client.Client
 }
 
+// NewServer creates and returns a Server instance, setting up the underlying Raft.
 func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, c *client.Client) *Server {
 	s := new(Server)
 	s.serverId = serverId
@@ -46,6 +47,7 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 	s.commitChan = commitChan
 	s.quit = make(chan any)
 	s.client = c
+
 	defer func() {
 		s.mu.Lock()
 		s.mu.Unlock()
@@ -54,130 +56,159 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 	return s
 }
 
+// Serve starts the RPC server in a separate goroutine,
+// listening on an automatically assigned TCP port.
 func (s *Server) Serve() {
 	s.mu.Lock()
 	s.rpcServer = rpc.NewServer()
 	s.rpcProxy = NewProxy(s.rf)
-	s.rpcServer.RegisterName("Raft", s.rpcProxy)
+	if err := s.rpcServer.RegisterName("Raft", s.rpcProxy); err != nil {
+		log.Error().Err(err).Int("serverId", s.serverId).Msg("Failed to register Raft RPC proxy")
+	}
 
 	var err error
 	s.listener, err = net.Listen("tcp", ":0")
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Failed to start listener")
+		log.Error().Err(err).Msg("Failed to start TCP listener. Server shutting down.")
+		s.mu.Unlock()
+		return
 	}
-	log.Info().Int("serverId", s.serverId).Str("addr", s.listener.Addr().String()).Msg("Listening")
+	log.Info().Int("serverId", s.serverId).Str("addr", s.listener.Addr().String()).Msg("Server is listening on TCP address")
 	s.mu.Unlock()
 
+	// Accept connections in a loop.
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-
 		for {
 			conn, err := s.listener.Accept()
 			if err != nil {
 				select {
 				case <-s.quit:
+					// The server is shutting down intentionally.
 					return
 				default:
-					log.Fatal().Err(err).Msg("Accept error")
+					log.Error().Err(err).Msg("Accept error while listening for RPC connections")
 				}
+			} else {
+				// Serve each new connection in its own goroutine.
+				s.wg.Add(1)
+				go func() {
+					s.rpcServer.ServeConn(conn)
+					s.wg.Done()
+				}()
 			}
-			s.wg.Add(1)
-			go func() {
-				s.rpcServer.ServeConn(conn)
-				s.wg.Done()
-			}()
 		}
 	}()
 }
 
+// Submit asks Raft to replicate a command. Returns the log index if this server is leader, else -1.
 func (s *Server) Submit(cmd any) int {
 	return s.rf.Submit(cmd)
 }
 
+// DisconnectAll closes all existing peer client connections.
 func (s *Server) DisconnectAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id := range s.peerClients {
 		if s.peerClients[id] != nil {
-			s.peerClients[id].Close()
+			_ = s.peerClients[id].Close() // ignoring close error
 			s.peerClients[id] = nil
 		}
 	}
+	log.Info().Int("serverId", s.serverId).Msg("Disconnected from all peers")
 }
 
+// Shutdown stops the Raft instance, closes the listener, and waits for background goroutines.
 func (s *Server) Shutdown() {
+	log.Info().Int("serverId", s.serverId).Msg("Server shutdown initiated")
 	s.rf.Kill()
+
 	close(s.quit)
-	s.listener.Close()
+	_ = s.listener.Close() // ignore error on close
 	s.wg.Wait()
+	log.Info().Int("serverId", s.serverId).Msg("Server shutdown complete")
 }
 
+// GetListenAddr returns the address the server is listening on.
 func (s *Server) GetListenAddr() net.Addr {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.listener.Addr()
 }
 
+// ConnectToPeer creates an RPC client to the given peer if it doesn't already exist.
 func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if s.peerClients[peerId] == nil {
 		client, err := rpc.Dial(addr.Network(), addr.String())
 		if err != nil {
+			log.Error().Err(err).Int("serverId", s.serverId).Int("peerId", peerId).Msg("Failed to connect to peer")
 			return err
 		}
 		s.peerClients[peerId] = client
+		log.Info().Int("serverId", s.serverId).Int("peerId", peerId).Str("addr", addr.String()).Msg("Connected to peer")
 	}
 	return nil
 }
+
+// DisconnectPeer closes the connection to a specific peer.
 func (s *Server) DisconnectPeer(peerId int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if s.peerClients[peerId] != nil {
 		err := s.peerClients[peerId].Close()
 		s.peerClients[peerId] = nil
 		if err != nil {
-			log.Error().Err(err).Int("peerId", peerId).Msg("Failed to disconnect peer")
+			log.Error().Err(err).Int("peerId", peerId).Msg("Failed to disconnect from peer")
+		} else {
+			log.Info().Int("peerId", peerId).Msg("Disconnected from peer")
 		}
 		return err
 	}
 	return nil
 }
 
+// Call invokes an RPC on the specified peer.
 func (s *Server) Call(id int, serviceMethod string, args any, reply any) error {
 	s.mu.Lock()
 	peer := s.peerClients[id]
 	s.mu.Unlock()
 
 	if peer == nil {
-		log.Error().Int("clientId", id).Msg("Call client after it's closed")
+		log.Error().Int("clientId", id).Msg("Attempted to call peer RPC after client connection was closed")
 		return fmt.Errorf("call client %d after it's closed", id)
-	} else {
-		return s.rpcProxy.Call(peer, serviceMethod, args, reply)
 	}
+	return s.rpcProxy.Call(peer, serviceMethod, args, reply)
 }
+
+// IsLeader returns true if this server's Raft instance is leader.
 func (s *Server) IsLeader() bool {
 	_, _, isLeader := s.rf.Report()
 	return isLeader
 }
 
-// RPCProxy acts as a proxy server for Raft's RPC methods, intercepting and manipulating RPC request
-// before forwarding them to the Raft server.
-// mainly willl be useful for simulating..
+// RPCProxy acts as a proxy for Raft's RPC methods, allowing us to manipulate
+// or drop messages for testing.
 type RPCProxy struct {
 	mu                 sync.Mutex
 	rf                 *Raft
 	numCallsBeforeDrop int
-	//   -1: means we're not dropping any calls
-	//    0: means we're dropping all calls now
-	//   >0: means we'll start dropping calls after this number is made
+	// -1: not dropping any calls
+	//  0: dropping all calls now
+	// >0: drop calls after the specified number
 }
 
+// Proxy returns the RPCProxy so tests can configure call drops, etc.
 func (s *Server) Proxy() *RPCProxy {
 	return s.rpcProxy
 }
 
+// NewProxy creates an RPCProxy for the given Raft instance.
 func NewProxy(rf *Raft) *RPCProxy {
 	return &RPCProxy{
 		rf:                 rf,
@@ -185,63 +216,77 @@ func NewProxy(rf *Raft) *RPCProxy {
 	}
 }
 
+// RequestVote simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error {
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
-		if dice == 9 {
-			// rpp.rf.dlog("drop RequestVote")
-			return fmt.Errorf("RPC failed")
-		} else if dice == 8 {
-			// rpp.rf.dlog("delay RequestVote")
+		switch dice {
+		case 9:
+			// Drop the RPC.
+			rpp.rf.dlog("RPCProxy: dropping RequestVote RPC for reliability test.")
+			return fmt.Errorf("RPC dropped by proxy")
+		case 8:
+			// Delay the RPC.
+			rpp.rf.dlog("RPCProxy: delaying RequestVote RPC for reliability test.")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
+		// Slight random delay to simulate network latency
 		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
 	}
 	return rpp.rf.RequestVote(args, reply)
 }
 
+// AppendEntries simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
-		if dice == 9 {
-			// rpp.rf.dlog("drop AppendEntries")
-			return fmt.Errorf("RPC failed")
-		} else if dice == 8 {
-			// rpp.rf.dlog("delay AppendEntries")
+		switch dice {
+		case 9:
+			// Drop the RPC.
+			rpp.rf.dlog("RPCProxy: dropping AppendEntries RPC for reliability test.")
+			return fmt.Errorf("RPC dropped by proxy")
+		case 8:
+			// Delay the RPC.
+			rpp.rf.dlog("RPCProxy: delaying AppendEntries RPC for reliability test.")
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
+		// Slight random delay to simulate network latency
 		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
 	}
 	return rpp.rf.AppendEntries(args, reply)
 }
 
+// Call checks if we should drop the call or forward it to the peer's RPC client.
 func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) error {
 	rpp.mu.Lock()
 	if rpp.numCallsBeforeDrop == 0 {
 		rpp.mu.Unlock()
-		// rpp.rf.dlog("drop Call %s: %v", method, args)
-		return fmt.Errorf("RPC failed")
-	} else {
-		if rpp.numCallsBeforeDrop > 0 {
-			rpp.numCallsBeforeDrop--
-		}
-		rpp.mu.Unlock()
-		return peer.Call(method, args, reply)
+		rpp.rf.dlog("RPCProxy: forcibly dropping Call for method=%s", method)
+		return fmt.Errorf("RPC forcibly dropped by proxy")
 	}
+	if rpp.numCallsBeforeDrop > 0 {
+		rpp.numCallsBeforeDrop--
+	}
+	rpp.mu.Unlock()
+
+	// Forward the call to the peer if not dropped.
+	return peer.Call(method, args, reply)
 }
 
+// DropCallsAfterN configures the proxy to start dropping all calls after N more calls.
 func (rpp *RPCProxy) DropCallsAfterN(n int) {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-
+	rpp.rf.dlog("RPCProxy: calls will be dropped after %d more calls", n)
 	rpp.numCallsBeforeDrop = n
 }
 
+// DontDropCalls configures the proxy to never drop calls.
 func (rpp *RPCProxy) DontDropCalls() {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-
+	rpp.rf.dlog("RPCProxy: calls will no longer be dropped.")
 	rpp.numCallsBeforeDrop = -1
 }

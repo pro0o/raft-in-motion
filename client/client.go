@@ -69,6 +69,7 @@ func ReadLoop(c *Client) {
 
 func WriteLoop(c *Client) {
 	defer CleanUp(c)
+
 	for {
 		select {
 		case logEntry := <-c.Send:
@@ -77,10 +78,15 @@ func WriteLoop(c *Client) {
 				return
 			}
 
+			// Send the single log entry
 			if err := c.Conn.WriteJSON(logEntry); err != nil {
 				log.Error().Err(err).Msg("Error sending log to client")
 				return
 			}
+
+			// Wait 1 second before sending the next log
+			// time.Sleep(100 * time.Millisecond)
+
 		case <-c.Closed:
 			log.Warn().Msg("Connection closed for client")
 			return

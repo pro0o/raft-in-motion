@@ -160,7 +160,7 @@ func (kvs *KVService) handleGet(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	kvs.kvlog("HTTP GET %v", gr)
+	//kvs.kvlog("HTTP GET %v", gr)
 
 	cmd := Command{
 		Kind: CommandGet,
