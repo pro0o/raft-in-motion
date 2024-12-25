@@ -1,13 +1,15 @@
 const WebSocket = require('ws');
-const ws = new WebSocket('ws://localhost:8080/ws');
+
+// Use the second CLI argument, default to "put"
+const action = process.argv[2] || 'put';
+const ws = new WebSocket(`ws://localhost:8080/ws/${action}`);
 
 ws.on('open', () => {
-    console.log('Connected to WebSocket server');
-
-    // Forcefully terminate the connection after 2 seconds
+    console.log(`Connected to WebSocket server via /ws/${action}`);
+    // Forcefully terminate the connection after 10 seconds
     setTimeout(() => {
-        ws.terminate(); // Immediately close the connection
-        console.log('WebSocket connection forcefully terminated after 10 second');
+        ws.terminate();
+        console.log('WebSocket connection forcefully terminated after 10 seconds');
     }, 10000);
 });
 
@@ -30,19 +32,22 @@ ws.on('close', (code, reason) => {
 });
 
 function displayLogEntry(logEntry) {
-    const timestamp = new Date(logEntry.timestamp / 1000000); // Convert nanoseconds to milliseconds
-    const formattedTimestamp = timestamp.toISOString().replace('T', ' ').substr(0, 23);
-    
-    console.log(`[${formattedTimestamp}] ${getLogStateName(logEntry.state)} (ID: ${logEntry.id})`);
-    console.log(`  Args: ${JSON.stringify(logEntry.args, null, 2)}`);
-    console.log('---');
+    const timestamp = new Date(logEntry.timestamp / 1_000_000); // Convert nanoseconds to ms
+    const formattedTimestamp = timestamp.toISOString().replace('T', ' ').substring(0, 23);
+    const joinedArgs = Array.isArray(logEntry.args) 
+        ? logEntry.args.join(' ')
+        : JSON.stringify(logEntry.args);
+
+    console.log(
+        `[${formattedTimestamp}] ${getLogStateName(logEntry.state)}(ID:${logEntry.id}): ${joinedArgs}`
+    );
 }
 
 function getLogStateName(state) {
     switch (state) {
-        case 'KV': return "KV";
-        case 'Raft': return "Raft";
-        case 'Client': return "Client";
-        default: return "Unknown";
+        case 'KV':     return 'KV';
+        case 'Raft':   return 'Raft';
+        case 'Client': return 'Client';
+        default:       return 'Unknown';
     }
 }
