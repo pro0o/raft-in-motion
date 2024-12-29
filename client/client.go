@@ -10,7 +10,7 @@ import (
 
 type Client struct {
 	Conn   *websocket.Conn
-	Send   chan LogEntry
+	Send   chan string
 	Closed chan bool
 	Once   sync.Once
 	State  ClientState
@@ -23,13 +23,6 @@ const (
 	Raft    LogState = "Raft"
 	Client_ LogState = "Client"
 )
-
-type LogEntry struct {
-	State     LogState `json:"state"`
-	ID        int      `json:"id"`
-	Args      []any    `json:"args"`
-	Timestamp int64    `json:"timestamp"`
-}
 
 type ClientState int
 
@@ -72,20 +65,16 @@ func WriteLoop(c *Client) {
 
 	for {
 		select {
-		case logEntry := <-c.Send:
+		case jsonLog := <-c.Send:
 			if c.State == Disconnected || c.State == Closed {
 				log.Warn().Msg("Client is disconnected or closed, not sending log entry.")
 				return
 			}
-
-			// Send the single log entry
-			if err := c.Conn.WriteJSON(logEntry); err != nil {
+			log.Info().Msgf("%s", jsonLog)
+			if err := c.Conn.WriteMessage(websocket.TextMessage, []byte(jsonLog)); err != nil {
 				log.Error().Err(err).Msg("Error sending log to client")
 				return
 			}
-
-			// Wait 1 second before sending the next log
-			// time.Sleep(100 * time.Millisecond)
 
 		case <-c.Closed:
 			log.Warn().Msg("Connection closed for client")
@@ -94,21 +83,14 @@ func WriteLoop(c *Client) {
 	}
 }
 
-func (c *Client) AddLog(state LogState, id int, args ...any) {
+func (c *Client) AddLog(state LogState, raftID int, jsonLog string) {
 	if c.State == Disconnected || c.State == Closed {
 		log.Warn().Msg("Client is disconnected or closed, not adding log entry.")
 		return
 	}
 
-	logEntry := LogEntry{
-		State:     state,
-		ID:        id,
-		Args:      args,
-		Timestamp: time.Now().UnixNano(),
-	}
-
 	select {
-	case c.Send <- logEntry:
+	case c.Send <- jsonLog: // Send the JSON string directly
 	case <-time.After(2 * time.Second):
 		log.Warn().Msg("Warning: log entry for client could not be sent immediately (timeout)")
 	}

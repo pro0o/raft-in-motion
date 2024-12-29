@@ -6,12 +6,14 @@ package server
 import (
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"main/client"
 	"main/kv/types"
@@ -64,7 +66,6 @@ func New(id int, peerIds []int, storage raft.Storage, readyChan <-chan any, c *c
 func (kvs *KVService) IsLeader() bool {
 	return kvs.rs.IsLeader()
 }
-
 func (kvs *KVService) ServeHTTP(port int) {
 	if kvs.srv != nil {
 		panic("ServeHTTP called with existing server")
@@ -79,9 +80,11 @@ func (kvs *KVService) ServeHTTP(port int) {
 	}
 
 	go func() {
-		kvs.kvlog("serving HTTP on %s", kvs.srv.Addr)
+		kvs.kvlog("serving HTTP", map[string]interface{}{
+			"address": kvs.srv.Addr,
+		})
 		if err := kvs.srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatal(err)
+			//log.Fatal()
 		}
 		kvs.srv = nil
 	}()
@@ -91,17 +94,19 @@ func (kvs *KVService) ServeHTTP(port int) {
 // It first closes the Raft server and its commit channel, then it stops the HTTP server.
 // The method waits for all shutdown operations to complete before returning.
 func (kvs *KVService) Shutdown() error {
-	kvs.kvlog("shutting down Raft server")
+	kvs.kvlog("shutting down Raft server", nil)
 	kvs.rs.Shutdown()
-	kvs.kvlog("closing commitChan")
+	kvs.kvlog("closing commitChan", nil)
 	close(kvs.commitChan)
 
 	if kvs.srv != nil {
-		kvs.kvlog("shutting down HTTP server")
+		kvs.kvlog("shutting down HTTP server", map[string]interface{}{
+			"timeout": "200ms",
+		})
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
 		kvs.srv.Shutdown(ctx)
-		kvs.kvlog("HTTP shutdown complete")
+		kvs.kvlog("HTTP shutdown complete", nil)
 		return nil
 	}
 
@@ -117,7 +122,9 @@ func (kvs *KVService) handlePut(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	kvs.kvlog("HTTP PUT %v", pr)
+	kvs.kvlog("Processing HTTP POST request", map[string]interface{}{
+		"key": pr.Key,
+	})
 
 	cmd := Command{
 		Kind:  CommandPut,
@@ -160,7 +167,9 @@ func (kvs *KVService) handleGet(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	//kvs.kvlog("HTTP GET %v", gr)
+	kvs.kvlog("Processing HTTP GET request", map[string]interface{}{
+		"key": gr.Key,
+	})
 
 	cmd := Command{
 		Kind: CommandGet,
@@ -252,10 +261,25 @@ func (kvs *KVService) popCommitSubscription(logIndex int) chan raft.CommitEntry 
 }
 
 // kvlog logs a message if the DebugKV flag is enabled.
-func (kvs *KVService) kvlog(format string, args ...any) {
+func (kvs *KVService) kvlog(event string, details map[string]interface{}) {
 	if DebugKV > 0 {
-		formattedMsg := fmt.Sprintf("[kv %d] ", kvs.id) + fmt.Sprintf(format, args...)
-		kvs.client.AddLog("KV", kvs.id, formattedMsg)
+		logEntry := map[string]interface{}{
+			"kvID":      kvs.id,
+			"event":     event,
+			"timestamp": time.Now().UnixNano(),
+		}
+
+		for key, value := range details {
+			logEntry[key] = value
+		}
+
+		jsonLog, err := json.Marshal(logEntry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
+			return
+		}
+
+		kvs.client.AddLog("KV", kvs.id, string(jsonLog))
 	}
 }
 

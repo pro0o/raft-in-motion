@@ -27,8 +27,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	c := &client.Client{
 		Conn:   conn,
-		Send:   make(chan client.LogEntry),
+		Send:   make(chan string),
 		Closed: make(chan bool),
+		State:  client.Active,
 	}
 
 	client.LogClientConnection(true)
@@ -93,8 +94,8 @@ func main() {
 
 	// IMPORTANT: Use "/ws/" so that URLs like "/ws/get" or "/ws/put" will be routed here.
 	http.HandleFunc("/ws/", handleWebSocket)
-	log.Info().Msg("WS Server started on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Info().Msg("WS Server started on :8081")
+	if err := http.ListenAndServe(":8081", nil); err != nil {
 		log.Fatal().Err(err).Msg("ListenAndServe error")
 	}
 }

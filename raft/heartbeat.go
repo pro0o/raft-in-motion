@@ -37,7 +37,12 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 
 	// 1. If leader’s term is newer than ours, update our term and convert to Follower
 	if args.Term > rf.currentTerm {
-		// rf.dlog("AppendEntries: new term detected (ourTerm=%d, leaderTerm=%d). Becoming FOLLOWER.", rf.currentTerm, args.Term)
+		rf.dlog("StateTransition", map[string]interface{}{
+			"newState": "Follower",
+			"reason":   "AppendEntries: new term detected",
+			"oldTerm":  rf.currentTerm,
+			"newTerm":  args.Term,
+		})
 		rf.becomeFollower(args.Term)
 	}
 
@@ -49,7 +54,11 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 	//    and reset the election timer.
 	if args.Term == rf.currentTerm {
 		if rf.state != Follower {
-			rf.dlog("AppendEntries: converting to FOLLOWER in current term=%d.", args.Term)
+			rf.dlog("StateTransition", map[string]interface{}{
+				"newState": "Follower",
+				"reason":   "AppendEntries: current term match",
+				"term":     args.Term,
+			})
 			rf.becomeFollower(args.Term)
 		}
 		rf.electionResetEvent = time.Now()
@@ -79,7 +88,12 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 			// If we still have new entries to insert, append them to our log after removing
 			// any conflicting entries first.
 			if newEntriesIndex < len(args.Entries) {
-				rf.dlog("AppendEntries: inserting entries %v at local index %d", args.Entries[newEntriesIndex:], logInsertIndex)
+				rf.dlog("AppendEntries", map[string]interface{}{
+					"action":      "insert_entries",
+					"insertIndex": logInsertIndex,
+					"newEntries":  args.Entries[newEntriesIndex:],
+					"currentLog":  rf.log,
+				})
 				rf.log = append(rf.log[:logInsertIndex], args.Entries[newEntriesIndex:]...)
 				// rf.dlog("AppendEntries: local log is now: %v", rf.log)
 			}
@@ -88,7 +102,10 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 			if args.LeaderCommit > rf.commitIndex {
 				oldCommit := rf.commitIndex
 				rf.commitIndex = min(args.LeaderCommit, len(rf.log)-1)
-				rf.dlog("AppendEntries: updating commitIndex from %d to %d", oldCommit, rf.commitIndex)
+				rf.dlog("CommitIndexUpdated", map[string]interface{}{
+					"oldCommitIndex": oldCommit,
+					"newCommitIndex": rf.commitIndex,
+				})
 				rf.newCommitReadyChan <- struct{}{}
 			}
 
@@ -99,8 +116,11 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 				// The leader wants to access an index we do not have.
 				reply.ConflictIndex = len(rf.log)
 				reply.ConflictTerm = -1
-				rf.dlog("AppendEntries: conflict - leader index=%d beyond local log. ConflictIndex=%d.",
-					args.PrevLogIndex, reply.ConflictIndex)
+				rf.dlog("AppendEntriesConflict", map[string]interface{}{
+					"reason":        "leader_index_out_of_range",
+					"prevLogIndex":  args.PrevLogIndex,
+					"conflictIndex": reply.ConflictIndex,
+				})
 			} else {
 				// Mismatch term at PrevLogIndex
 				conflictTerm := rf.log[args.PrevLogIndex].Term
@@ -110,8 +130,12 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 					i--
 				}
 				reply.ConflictIndex = i + 1
-				rf.dlog("AppendEntries: conflict - mismatch term at index=%d. ConflictTerm=%d, ConflictIndex=%d.",
-					args.PrevLogIndex, conflictTerm, reply.ConflictIndex)
+				rf.dlog("AppendEntriesConflict", map[string]interface{}{
+					"reason":        "term_mismatch",
+					"prevLogIndex":  args.PrevLogIndex,
+					"conflictTerm":  conflictTerm,
+					"conflictIndex": reply.ConflictIndex,
+				})
 			}
 		}
 	}
@@ -160,7 +184,12 @@ func (rf *Raft) leaderSendHeartbeats() {
 
 				// If a higher term is found, revert to follower
 				if reply.Term > rf.currentTerm {
-					rf.dlog("Heartbeat reply from %d indicates newer term=%d; converting to FOLLOWER.", peerId, reply.Term)
+					rf.dlog("StateTransition", map[string]interface{}{
+						"newState": "Follower",
+						"reason":   "Heartbeat reply indicates newer term",
+						"peerId":   peerId,
+						"newTerm":  reply.Term,
+					})
 					rf.becomeFollower(reply.Term)
 					return
 				}
@@ -171,6 +200,13 @@ func (rf *Raft) leaderSendHeartbeats() {
 						// Update nextIndex and matchIndex upon successful replication
 						rf.nextIndex[peerId] = nextIndexForPeer + len(entries)
 						rf.matchIndex[peerId] = rf.nextIndex[peerId] - 1
+
+						// rf.dlog("AppendEntriesSuccess", map[string]interface{}{
+						// 	"peerId":     peerId,
+						// 	"nextIndex":  rf.nextIndex[peerId],
+						// 	"matchIndex": rf.matchIndex[peerId],
+						// 	"entries":    len(entries),
+						// })
 
 						// Attempt to advance commitIndex if a new majority forms
 						oldCommitIndex := rf.commitIndex
@@ -188,7 +224,11 @@ func (rf *Raft) leaderSendHeartbeats() {
 							}
 						}
 						if rf.commitIndex != oldCommitIndex {
-							rf.dlog("Leader has a new commitIndex=%d. Broadcasting new commits to peers.", rf.commitIndex)
+							rf.dlog("CommitIndexUpdated", map[string]interface{}{
+								"oldCommitIndex": oldCommitIndex,
+								"newCommitIndex": rf.commitIndex,
+								"log":            rf.log[oldCommitIndex+1 : rf.commitIndex+1],
+							})
 							rf.newCommitReadyChan <- struct{}{}
 							rf.triggerAEChan <- struct{}{}
 						}
@@ -208,15 +248,23 @@ func (rf *Raft) leaderSendHeartbeats() {
 							} else {
 								rf.nextIndex[peerId] = reply.ConflictIndex
 							}
-							rf.dlog("Conflict with %d. Updated nextIndex=%d based on conflict term %d.",
-								peerId, rf.nextIndex[peerId], reply.ConflictTerm)
+							rf.dlog("ConflictResolution", map[string]interface{}{
+								"peerId":          peerId,
+								"nextIndex":       rf.nextIndex[peerId],
+								"conflictTerm":    reply.ConflictTerm,
+								"lastIndexOfTerm": lastIndexOfTerm,
+							})
 						} else {
 							rf.nextIndex[peerId] = reply.ConflictIndex
-							rf.dlog("Conflict with %d. Updated nextIndex=%d with no conflictTerm info.",
-								peerId, rf.nextIndex[peerId])
+							rf.dlog("ConflictResolution", map[string]interface{}{
+								"peerId":       peerId,
+								"nextIndex":    rf.nextIndex[peerId],
+								"conflictTerm": "none",
+							})
 						}
 					}
 				}
+
 			}
 		}(peerId)
 	}
@@ -248,9 +296,17 @@ func (rf *Raft) commitChanSender() {
 				Index:   commitIndex,
 				Term:    savedTerm,
 			}
-			rf.dlog("commitChanSender: delivered entry at index=%d to commitChan", commitIndex)
+			rf.dlog("CommitEntryDelivered", map[string]interface{}{
+				"commitIndex": commitIndex,
+				"term":        savedTerm,
+				"command":     entry.Command,
+			})
 		}
 	}
+
 	// When newCommitReadyChan is closed, this goroutine ends
-	rf.dlog("commitChanSender: newCommitReadyChan closed, stopping commit loop.")
+	rf.dlog("CommitChanSenderStopped", map[string]interface{}{
+		"reason": "newCommitReadyChan closed",
+		"raftID": rf.id,
+	})
 }

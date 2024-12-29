@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const DebugClient = 1
@@ -73,15 +75,20 @@ FindLeader:
 		retryCtx, retryCtxCancel := context.WithTimeout(ctx, 50*time.Millisecond)
 		path := fmt.Sprintf("http://%s/%s/", c.addrs[c.assumedLeader], route)
 
-		c.clientlog("Sending request to %s: req=%v", path, req)
+		c.clientlog("SendingRequest", map[string]interface{}{
+			"path":    path,
+			"request": req,
+		})
 
 		if err := sendJSONRequest(retryCtx, path, req, resp); err != nil {
 			if contextDone(ctx) {
-				c.clientlog("Parent context canceled or deadline exceeded; exiting")
+				c.clientlog("Parent context canceled or deadline exceeded", nil)
 				retryCtxCancel()
 				return err
 			} else if contextDeadlineExceeded(retryCtx) {
-				c.clientlog("Timed out contacting %s; trying next server address", path)
+				c.clientlog("Timed out contacting server", map[string]interface{}{
+					"path": path,
+				})
 				c.assumedLeader = (c.assumedLeader + 1) % len(c.addrs)
 				retryCtxCancel()
 				continue FindLeader
@@ -90,17 +97,21 @@ FindLeader:
 			return err
 		}
 
-		c.clientlog("Received response: resp=%v", resp)
+		c.clientlog("ReceivedResponse", map[string]interface{}{
+			"response": resp,
+		})
 
 		switch resp.Status() {
 		case types.StatusNotLeader:
-			c.clientlog("Response indicates not leader; will wait and try next server")
+			c.clientlog("Response indicates not leader", nil)
 			time.Sleep(300 * time.Millisecond) // small backoff
 			c.assumedLeader = (c.assumedLeader + 1) % len(c.addrs)
 			retryCtxCancel()
 			continue FindLeader
 		case types.StatusOK:
-			c.clientlog("Found leader at %s (StatusOK).", path)
+			c.clientlog("FoundLeader", map[string]interface{}{
+				"path": path,
+			})
 			retryCtxCancel()
 			return nil
 		case types.StatusFailedCommit:
@@ -113,10 +124,25 @@ FindLeader:
 }
 
 // clientlog writes minimal logs if DebugClient > 0.
-func (cl *KVClient) clientlog(format string, args ...any) {
+func (cl *KVClient) clientlog(event string, details map[string]interface{}) {
 	if DebugClient > 0 {
-		formattedMsg := fmt.Sprintf("[%d] ", cl.clientID) + fmt.Sprintf(format, args...)
-		cl.client.AddLog("Client", int(cl.clientID), formattedMsg)
+		logEntry := map[string]interface{}{
+			"clientID":  cl.clientID,
+			"event":     event,
+			"timestamp": time.Now().UnixNano(),
+		}
+
+		for key, value := range details {
+			logEntry[key] = value
+		}
+
+		jsonLog, err := json.Marshal(logEntry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
+			return
+		}
+
+		cl.client.AddLog("Client", int(cl.clientID), string(jsonLog))
 	}
 }
 

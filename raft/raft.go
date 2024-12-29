@@ -1,10 +1,12 @@
 package raft
 
 import (
-	"fmt"
+	"encoding/json"
 	"main/client"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const DebugRF = 1
@@ -120,21 +122,53 @@ func (rf *Raft) Submit(command any) int {
 	return submitIndex
 }
 
-// Kill marks this Raft node as Dead and cleans up.
+// Kill marks this Raft node as Dead and performs necessary cleanup.
 func (rf *Raft) Kill() {
 	rf.mu.Lock()
-	defer rf.mu.Unlock()
+
+	if rf.state == Dead {
+		rf.mu.Unlock()
+		return
+	}
 
 	rf.state = Dead
-	rf.dlog("Node transitioning to state=Dead. Closing commit-ready channel.")
+	rf.dlog("StateTransition", map[string]interface{}{
+		"newState": "Dead",
+		"reason":   "Kill method called",
+	})
+
 	close(rf.newCommitReadyChan)
+	close(rf.triggerAEChan)
+
+	rf.mu.Unlock()
+
+	rf.dlog("NodeCleanup", map[string]interface{}{
+		"raftID":    rf.id,
+		"timestamp": time.Now().UnixNano(),
+	})
 }
 
-// dlog writes logs if DebugRF > 0, using the provided client logger.
-func (rf *Raft) dlog(format string, args ...any) {
+// dlog writes structured logs if DebugRF > 0, using the provided client logger.
+func (rf *Raft) dlog(event string, details map[string]interface{}) {
 	if DebugRF > 0 {
-		formattedMsg := fmt.Sprintf("[%d] ", rf.id) + fmt.Sprintf(format, args...)
-		rf.client.AddLog("Raft", rf.id, formattedMsg)
+		logEntry := map[string]interface{}{
+			"raftID":    rf.id,
+			"term":      rf.currentTerm,
+			"event":     event,
+			"timestamp": time.Now().UnixNano(),
+		}
+
+		for key, value := range details {
+			logEntry[key] = value
+		}
+
+		jsonLog, err := json.Marshal(logEntry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
+			return
+		}
+
+		rf.client.AddLog("Raft", rf.id, string(jsonLog))
 	}
 }
 
@@ -186,7 +220,11 @@ func Make(
 
 // becomeFollower transitions the node to Follower state in the given term.
 func (rf *Raft) becomeFollower(term int) {
-	rf.dlog("Transitioning to FOLLOWER in term=%d. Current log: %v", term, rf.log)
+	rf.dlog("StateTransition", map[string]interface{}{
+		"newState": "Follower",
+		"term":     term,
+		"log":      rf.log,
+	})
 	rf.state = Follower
 	rf.currentTerm = term
 	rf.votedFor = -1
@@ -203,9 +241,13 @@ func (rf *Raft) startLeader() {
 		rf.nextIndex[peerId] = len(rf.log)
 		rf.matchIndex[peerId] = -1
 	}
-	rf.dlog("Transitioning to LEADER in term=%d. nextIndex=%v, matchIndex=%v, current log=%v",
-		rf.currentTerm, rf.nextIndex, rf.matchIndex, rf.log)
-
+	rf.dlog("StateTransition", map[string]interface{}{
+		"newState":   "Leader",
+		"term":       rf.currentTerm,
+		"nextIndex":  rf.nextIndex,
+		"matchIndex": rf.matchIndex,
+		"currentLog": rf.log,
+	})
 	// This goroutine regularly sends heartbeats (AppendEntries) or logs to followers.
 	go func(heartbeatTimeout time.Duration) {
 		rf.leaderSendHeartbeats() // Send an immediate set of heartbeats

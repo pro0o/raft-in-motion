@@ -29,13 +29,22 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 	localLastIndex, localLastTerm := rf.lastLogIndexAndTerm()
 
 	// Log the incoming RequestVote
-	rf.dlog("Received RequestVote from candidate=%d (term=%d). Local state: [term=%d, votedFor=%d, lastIndex=%d, lastTerm=%d]",
-		args.CandidateId, args.Term, rf.currentTerm, rf.votedFor, localLastIndex, localLastTerm)
+	rf.dlog("RequestVoteReceived", map[string]interface{}{
+		"candidateId":   args.CandidateId,
+		"candidateTerm": args.Term,
+		"localTerm":     rf.currentTerm,
+		"votedFor":      rf.votedFor,
+		"lastIndex":     localLastIndex,
+		"lastTerm":      localLastTerm,
+	})
 
 	// If the candidate's term is higher, update our term and become Follower
 	if args.Term > rf.currentTerm {
-		rf.dlog("RequestVote: candidate term (%d) is newer than local term (%d). Converting to FOLLOWER.",
-			args.Term, rf.currentTerm)
+		rf.dlog("StateTransition", map[string]interface{}{
+			"newState": "Follower",
+			"reason":   "Newer term",
+			"term":     args.Term,
+		})
 		rf.becomeFollower(args.Term)
 	}
 
@@ -50,7 +59,10 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
 		rf.electionResetEvent = time.Now()
-		rf.dlog("Granting vote to candidate=%d for term=%d", args.CandidateId, args.Term)
+		rf.dlog("VoteGranted", map[string]interface{}{
+			"candidateId": args.CandidateId,
+			"term":        args.Term,
+		})
 	}
 
 	// Populate reply with our current term
@@ -60,7 +72,11 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 	rf.persistToStorage()
 
 	// Log the outcome of the RequestVote
-	rf.dlog("RequestVote reply to candidate=%d: [term=%d, voteGranted=%t]", args.CandidateId, reply.Term, reply.VoteGranted)
+	rf.dlog("RequestVoteReply", map[string]interface{}{
+		"candidateId": args.CandidateId,
+		"term":        reply.Term,
+		"voteGranted": reply.VoteGranted,
+	})
 
 	return nil
 }

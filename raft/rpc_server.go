@@ -223,16 +223,28 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 		switch dice {
 		case 9:
 			// Drop the RPC.
-			rpp.rf.dlog("RPCProxy: dropping RequestVote RPC for reliability test.")
+			// rpp.rf.dlog("RPCDrop", map[string]interface{}{
+			// 	"rpcType": "RequestVote",
+			// 	"reason":  "reliability test",
+			// })
 			return fmt.Errorf("RPC dropped by proxy")
 		case 8:
 			// Delay the RPC.
-			rpp.rf.dlog("RPCProxy: delaying RequestVote RPC for reliability test.")
+			// rpp.rf.dlog("RPCDelay", map[string]interface{}{
+			// 	"rpcType": "RequestVote",
+			// 	"reason":  "reliability test",
+			// 	"delayMs": 75,
+			// })
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
 		// Slight random delay to simulate network latency
-		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
+		delay := time.Duration(1+rand.Intn(5)) * time.Millisecond
+		// rpp.rf.dlog("RPCSimulateDelay", map[string]interface{}{
+		// 	"rpcType": "RequestVote",
+		// 	"delayMs": delay.Milliseconds(),
+		// })
+		time.Sleep(delay)
 	}
 	return rpp.rf.RequestVote(args, reply)
 }
@@ -244,16 +256,28 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 		switch dice {
 		case 9:
 			// Drop the RPC.
-			rpp.rf.dlog("RPCProxy: dropping AppendEntries RPC for reliability test.")
+			// rpp.rf.dlog("RPCDrop", map[string]interface{}{
+			// 	"rpcType": "AppendEntries",
+			// 	"reason":  "reliability test",
+			// })
 			return fmt.Errorf("RPC dropped by proxy")
 		case 8:
 			// Delay the RPC.
-			rpp.rf.dlog("RPCProxy: delaying AppendEntries RPC for reliability test.")
+			// rpp.rf.dlog("RPCDelay", map[string]interface{}{
+			// 	"rpcType": "AppendEntries",
+			// 	"reason":  "reliability test",
+			// 	"delayMs": 75,
+			// })
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
 		// Slight random delay to simulate network latency
-		time.Sleep(time.Duration(1+rand.Intn(5)) * time.Millisecond)
+		delay := time.Duration(1+rand.Intn(5)) * time.Millisecond
+		// rpp.rf.dlog("RPCSimulateDelay", map[string]interface{}{
+		// 	"rpcType": "AppendEntries",
+		// 	"delayMs": delay.Milliseconds(),
+		// })
+		time.Sleep(delay)
 	}
 	return rpp.rf.AppendEntries(args, reply)
 }
@@ -263,7 +287,10 @@ func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) 
 	rpp.mu.Lock()
 	if rpp.numCallsBeforeDrop == 0 {
 		rpp.mu.Unlock()
-		rpp.rf.dlog("RPCProxy: forcibly dropping Call for method=%s", method)
+		// rpp.rf.dlog("RPCDrop", map[string]interface{}{
+		// 	"rpcType": method,
+		// 	"reason":  "forced drop",
+		// })
 		return fmt.Errorf("RPC forcibly dropped by proxy")
 	}
 	if rpp.numCallsBeforeDrop > 0 {
@@ -279,7 +306,10 @@ func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) 
 func (rpp *RPCProxy) DropCallsAfterN(n int) {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-	rpp.rf.dlog("RPCProxy: calls will be dropped after %d more calls", n)
+	// rpp.rf.dlog("RPCDropConfig", map[string]interface{}{
+	// 	"action":    "drop_after_n",
+	// 	"remaining": n,
+	// })
 	rpp.numCallsBeforeDrop = n
 }
 
@@ -287,6 +317,8 @@ func (rpp *RPCProxy) DropCallsAfterN(n int) {
 func (rpp *RPCProxy) DontDropCalls() {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-	rpp.rf.dlog("RPCProxy: calls will no longer be dropped.")
+	// rpp.rf.dlog("RPCDropConfig", map[string]interface{}{
+	// 	"action": "dont_drop",
+	// })
 	rpp.numCallsBeforeDrop = -1
 }
