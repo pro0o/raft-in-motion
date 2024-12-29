@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* You can add global custom styles or CSS variables here. */
+body {
+  @apply bg-white text-gray-800 antialiased;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
