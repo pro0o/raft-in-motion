@@ -1,64 +1,106 @@
-import React, { createContext, useContext, useRef, useState } from "react";
-import { WebSocketService, LogEntry } from "@/services/wsService";
+import React, { createContext, useContext, useRef, useState} from "react";
+import { WebSocketService } from "@/services/wsService";
+import { LogEntry } from "@/types/logs";
 
 interface LogsContextType {
-    connect: (action: string) => void;
-    resetLogs: () => void;
-    logs: LogEntry[];
-    logCount: number; // Add log count to the context
+  connect: (action: string) => void;
+  logs: LogEntry[];
 }
 
-const LogsContext = createContext<LogsContextType | null>(null);
+const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const wsServiceRef = useRef<WebSocketService | null>(null);
-    const [logs, setLogs] = useState<LogEntry[]>([]); // State to store logs
-    const [logCount, setLogCount] = useState(0); // State to store log count for the current session
+  const wsServiceRef = useRef<WebSocketService | null>(null);
+  
+  // This queue will temporarily hold incoming logs
+  // until we flush them out to `logs` at 1-second intervals
+  const logQueueRef = useRef<LogEntry[]>([]);
+  
+  // The interval ID for flushing the queue
+  const flushIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    if (!wsServiceRef.current) {
-        wsServiceRef.current = new WebSocketService("ws://localhost:8080/ws");
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
-        // Attach callback for when logs are received or reset
-        wsServiceRef.current.onLogReceived = (newLog: LogEntry | null) => {
-            if (newLog === null) {
-                console.log("[LogsProvider] Logs reset"); // Debug log for reset
-                setLogs([]); // Clear logs when reset is signaled
-                setLogCount(0); // Reset log count
-            } else {
-                setLogs((prevLogs) => {
-                    const maxLogs = 100; // Limit the log size
-                    const updatedLogs = [...prevLogs.slice(-maxLogs + 1), newLog];
-                    // console.log("[LogsProvider] Log received:", newLog); // Debug log for new log
-                    return updatedLogs;
-                });
-                setLogCount((prevCount) => prevCount + 1); // Increment log count
-            }
-        };
+  /**
+   * This function starts an interval that flushes one log at a time
+   * from `logQueueRef` into the `logs` state every 1 second.
+   */
+  const startFlushing = () => {
+    // If there's already a flusher running, do nothing
+    if (flushIntervalRef.current) return;
+
+    flushIntervalRef.current = setInterval(() => {
+      // If the queue is empty, stop the interval
+      if (logQueueRef.current.length === 0) {
+        if (flushIntervalRef.current) {
+          clearInterval(flushIntervalRef.current);
+          flushIntervalRef.current = null;
+        }
+        return;
+      }
+
+      // Dequeue the first log and add it to `logs`
+      const nextLog = logQueueRef.current.shift()!;
+      setLogs((prevLogs) => [...prevLogs, nextLog]);
+    }, 1000);
+  };
+
+  /**
+   * Adds the new log to the queue and ensures the flusher is running.
+   */
+  const enqueueLog = (newLog: LogEntry) => {
+    logQueueRef.current.push(newLog);
+    startFlushing();
+  };
+
+  /**
+   * Called when we click a button or otherwise want to connect
+   * and re-initialize logs.
+   */
+  const connect = (action: string) => {
+    try {
+      // Clear any existing WebSocket service
+      wsServiceRef.current = null;
+
+      // Also clear logs and any queued logs
+      setLogs([]);
+      logQueueRef.current = [];
+
+      // Clear any existing flusher
+      if (flushIntervalRef.current) {
+        clearInterval(flushIntervalRef.current);
+        flushIntervalRef.current = null;
+      }
+
+      // Create and connect a new WebSocket
+      const newWsService = new WebSocketService("ws://localhost:8081/ws");
+
+      // Instead of setting logs immediately, enqueue them
+      newWsService.onLogReceived = (newLog: LogEntry) => {
+        enqueueLog(newLog);
+      };
+
+      newWsService.connect(action);
+      wsServiceRef.current = newWsService;
+    } catch (error) {
+      console.error("Failed to establish WebSocket connection:", error);
+      throw error;
     }
+  };
 
-    const connect = (action: string) => {
-        console.log(`[LogsProvider] Connecting with action: ${action}`); // Debug log for connection
-        resetLogs(); // Reset logs before establishing a new WebSocket connection
-        wsServiceRef.current?.connect(action);
-    };
+  const contextValue = React.useMemo(() => ({ connect, logs }), [logs]);
 
-    const resetLogs = () => {
-        console.log("[LogsProvider] Resetting logs"); // Debug log for reset
-        wsServiceRef.current?.resetLogs(); // Reset logs in the WebSocketService
-        setLogCount(0); // Reset log count
-    };
-
-    return (
-        <LogsContext.Provider value={{ connect, resetLogs, logs, logCount }}>
-            {children}
-        </LogsContext.Provider>
-    );
+  return (
+    <LogsContext.Provider value={contextValue}>
+      {children}
+    </LogsContext.Provider>
+  );
 };
 
-export const useLogs = () => {
-    const context = useContext(LogsContext);
-    if (!context) {
-        throw new Error("useLogs must be used within LogsProvider");
-    }
-    return context;
+export const useLogs = (): LogsContextType => {
+  const context = useContext(LogsContext);
+  if (!context) {
+    throw new Error("useLogs must be used within LogsProvider");
+  }
+  return context;
 };

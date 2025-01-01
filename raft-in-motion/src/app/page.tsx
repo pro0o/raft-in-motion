@@ -1,6 +1,6 @@
 "use client"
 
-import ServerChart from "@/components/serverChart"
+import RaftVisualization from "@/components/raftVisualization"
 import ControlPanel from "@/components/controlPanel"
 import { LogsProvider } from "@/context/logsContext"
 
@@ -19,7 +19,7 @@ export default function Home() {
           <div className="grid grid-cols-3 h-full gap-5">
             {/* Server Column - Takes up 2/3 of the space */}
             <div className="col-span-2">
-              <ServerChart />
+              <RaftVisualization />
             </div>
             {/* Control Panel Column - Takes up 1/3 of the space */}
             <div className="flex flex-col gap-3">
