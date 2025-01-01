@@ -59,10 +59,10 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
 		rf.electionResetEvent = time.Now()
-		rf.dlog("VoteGranted", map[string]interface{}{
-			"candidateId": args.CandidateId,
-			"term":        args.Term,
-		})
+		// rf.dlog("VoteGranted", map[string]interface{}{
+		// 	"candidateId": args.CandidateId,
+		// 	"term":        args.Term,
+		// })
 	}
 
 	// Populate reply with our current term
@@ -71,12 +71,12 @@ func (rf *Raft) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error
 	// Persist any updated state
 	rf.persistToStorage()
 
-	// Log the outcome of the RequestVote
-	rf.dlog("RequestVoteReply", map[string]interface{}{
-		"candidateId": args.CandidateId,
-		"term":        reply.Term,
-		"voteGranted": reply.VoteGranted,
-	})
+	// // Log the outcome of the RequestVote
+	// rf.dlog("RequestVoteReply", map[string]interface{}{
+	// 	"candidateId": args.CandidateId,
+	// 	"term":        reply.Term,
+	// 	"voteGranted": reply.VoteGranted,
+	// })
 
 	return nil
 }

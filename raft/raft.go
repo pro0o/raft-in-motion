@@ -220,11 +220,11 @@ func Make(
 
 // becomeFollower transitions the node to Follower state in the given term.
 func (rf *Raft) becomeFollower(term int) {
-	rf.dlog("StateTransition", map[string]interface{}{
-		"newState": "Follower",
-		"term":     term,
-		"log":      rf.log,
-	})
+	// rf.dlog("StateTransition", map[string]interface{}{
+	// 	"newState": "Follower",
+	// 	"term":     term,
+	// 	"log":      rf.log,
+	// })
 	rf.state = Follower
 	rf.currentTerm = term
 	rf.votedFor = -1

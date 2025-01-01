@@ -97,20 +97,23 @@ FindLeader:
 			return err
 		}
 
-		c.clientlog("ReceivedResponse", map[string]interface{}{
-			"response": resp,
-		})
+		// c.clientlog("ReceivedResponse", map[string]interface{}{
+		// 	"response": resp,
+		// })
 
 		switch resp.Status() {
 		case types.StatusNotLeader:
-			c.clientlog("Response indicates not leader", nil)
+			c.clientlog("ResponseNotLeader", map[string]interface{}{
+				"attemptedServer": c.addrs[c.assumedLeader],
+			})
 			time.Sleep(300 * time.Millisecond) // small backoff
 			c.assumedLeader = (c.assumedLeader + 1) % len(c.addrs)
 			retryCtxCancel()
 			continue FindLeader
 		case types.StatusOK:
 			c.clientlog("FoundLeader", map[string]interface{}{
-				"path": path,
+				"path":   path,
+				"server": c.addrs[c.assumedLeader],
 			})
 			retryCtxCancel()
 			return nil

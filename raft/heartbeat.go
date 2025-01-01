@@ -89,7 +89,7 @@ func (rf *Raft) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply)
 			// any conflicting entries first.
 			if newEntriesIndex < len(args.Entries) {
 				rf.dlog("AppendEntries", map[string]interface{}{
-					"action":      "insert_entries",
+					"action":      "InsertEntr",
 					"insertIndex": logInsertIndex,
 					"newEntries":  args.Entries[newEntriesIndex:],
 					"currentLog":  rf.log,
