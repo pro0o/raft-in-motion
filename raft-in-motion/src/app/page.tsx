@@ -1,6 +1,7 @@
 "use client"
 
 import RaftVisualization from "@/components/raftVisualization"
+import RaftLogReplicationChart from "@/components/lineChart"
 import ControlPanel from "@/components/controlPanel"
 import { LogsProvider } from "@/context/logsContext"
 
@@ -11,7 +12,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <p className="font-mono text-2xl">Raft in motion</p>
         </div>
-        <p className="text-sm text-slate-500">Simulating raft consensus algorithm in go.</p>
+        <p className="text-md text-slate-500">Simulating raft consensus algorithm in go.</p>
       </header>
 
       <LogsProvider>
@@ -24,6 +25,7 @@ export default function Home() {
             {/* Control Panel Column - Takes up 1/3 of the space */}
             <div className="flex flex-col gap-3">
               <ControlPanel />
+              <RaftLogReplicationChart/>
             </div>
           </div>
         </div>
