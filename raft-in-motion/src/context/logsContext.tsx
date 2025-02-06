@@ -1,106 +1,111 @@
-import React, { createContext, useContext, useRef, useState} from "react";
-import { WebSocketService } from "@/services/wsService";
-import { LogEntry } from "@/types/logs";
+import React, { createContext, useContext, useRef, useState, useCallback } from "react"
+import { WebSocketService } from "@/services/wsService"
+import type { LogEntry } from "@/types/logs"
 
 interface LogsContextType {
-  connect: (action: string) => void;
-  logs: LogEntry[];
+  connect: (action: string, options: { logFrequency: number; requestRate: number }) => void
+  logs: LogEntry[]
+  clearLogs: () => void
+  resetServerStates: () => void
 }
 
-const LogsContext = createContext<LogsContextType | undefined>(undefined);
+const LogsContext = createContext<LogsContextType | undefined>(undefined)
 
 export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const wsServiceRef = useRef<WebSocketService | null>(null);
-  
-  // This queue will temporarily hold incoming logs
-  // until we flush them out to `logs` at 1-second intervals
-  const logQueueRef = useRef<LogEntry[]>([]);
-  
-  // The interval ID for flushing the queue
-  const flushIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wsServiceRef = useRef<WebSocketService | null>(null)
+  const logQueueRef = useRef<LogEntry[]>([])
+  const flushIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const initialServerStates = [
+    { id: 0, raftID: 0, state: "Follower", term: 0, votedFor: null, hasVoted: false },
+    { id: 1, raftID: 1, state: "Follower", term: 0, votedFor: null, hasVoted: false },
+    { id: 2, raftID: 2, state: "Follower", term: 0, votedFor: null, hasVoted: false }
+  ]
+  const serverStatesRef = useRef(initialServerStates)
 
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-
-  /**
-   * This function starts an interval that flushes one log at a time
-   * from `logQueueRef` into the `logs` state every 1 second.
-   */
-  const startFlushing = () => {
-    // If there's already a flusher running, do nothing
-    if (flushIntervalRef.current) return;
+  const startFlushing = useCallback((logFrequency: number) => {
+    if (flushIntervalRef.current) {
+      clearInterval(flushIntervalRef.current)
+      flushIntervalRef.current = null
+    }
 
     flushIntervalRef.current = setInterval(() => {
-      // If the queue is empty, stop the interval
       if (logQueueRef.current.length === 0) {
         if (flushIntervalRef.current) {
-          clearInterval(flushIntervalRef.current);
-          flushIntervalRef.current = null;
+          clearInterval(flushIntervalRef.current)
+          flushIntervalRef.current = null
+          resetServerStates()
         }
-        return;
+        return
       }
 
-      // Dequeue the first log and add it to `logs`
-      const nextLog = logQueueRef.current.shift()!;
-      setLogs((prevLogs) => [...prevLogs, nextLog]);
-    }, 1000);
-  };
+      const nextLog = logQueueRef.current.shift()!
+      setLogs((prevLogs) => [...prevLogs, nextLog])
+    }, logFrequency * 250)
+  }, [])
 
-  /**
-   * Adds the new log to the queue and ensures the flusher is running.
-   */
-  const enqueueLog = (newLog: LogEntry) => {
-    logQueueRef.current.push(newLog);
-    startFlushing();
-  };
+  const resetServerStates = useCallback(() => {
+    serverStatesRef.current = [...initialServerStates]
+  }, [])
 
-  /**
-   * Called when we click a button or otherwise want to connect
-   * and re-initialize logs.
-   */
-  const connect = (action: string) => {
-    try {
-      // Clear any existing WebSocket service
-      wsServiceRef.current = null;
-
-      // Also clear logs and any queued logs
-      setLogs([]);
-      logQueueRef.current = [];
-
-      // Clear any existing flusher
-      if (flushIntervalRef.current) {
-        clearInterval(flushIntervalRef.current);
-        flushIntervalRef.current = null;
-      }
-
-      // Create and connect a new WebSocket
-      const newWsService = new WebSocketService("ws://localhost:8081/ws");
-
-      // Instead of setting logs immediately, enqueue them
-      newWsService.onLogReceived = (newLog: LogEntry) => {
-        enqueueLog(newLog);
-      };
-
-      newWsService.connect(action);
-      wsServiceRef.current = newWsService;
-    } catch (error) {
-      console.error("Failed to establish WebSocket connection:", error);
-      throw error;
+  const enqueueLog = useCallback((newLog: LogEntry, logFrequency: number) => {
+    logQueueRef.current.push(newLog)
+    if (!flushIntervalRef.current) {
+      startFlushing(logFrequency)
     }
-  };
+  }, [startFlushing])
 
-  const contextValue = React.useMemo(() => ({ connect, logs }), [logs]);
+  const connect = useCallback((action: string, options: { logFrequency: number; requestRate: number }) => {
+    try {
+      wsServiceRef.current?.ws?.close()
+      wsServiceRef.current = null
+      setLogs([])
+      logQueueRef.current = []
+      resetServerStates()
 
-  return (
-    <LogsContext.Provider value={contextValue}>
-      {children}
-    </LogsContext.Provider>
-  );
-};
+      if (flushIntervalRef.current) {
+        clearInterval(flushIntervalRef.current)
+        flushIntervalRef.current = null
+      }
+
+      const newWsService = new WebSocketService('ws://localhost:8081/ws', { requestRate: options.requestRate })
+
+      newWsService.onLogReceived = (newLog: LogEntry) => {
+        enqueueLog(newLog, options.logFrequency)
+      }
+
+      newWsService.connect('put')
+      wsServiceRef.current = newWsService
+    } catch (error) {
+      console.error("Failed to establish WebSocket connection:", error)
+      throw error
+    }
+  }, [enqueueLog, resetServerStates])
+
+  const clearLogs = useCallback(() => {
+    setLogs([])
+    logQueueRef.current = []
+    resetServerStates()
+    if (flushIntervalRef.current) {
+      clearInterval(flushIntervalRef.current)
+      flushIntervalRef.current = null
+    }
+  }, [resetServerStates])
+
+  const contextValue = React.useMemo(() => ({ 
+    connect, 
+    logs, 
+    clearLogs,
+    resetServerStates
+  }), [connect, logs, clearLogs, resetServerStates])
+
+  return <LogsContext.Provider value={contextValue}>{children}</LogsContext.Provider>
+}
 
 export const useLogs = (): LogsContextType => {
-  const context = useContext(LogsContext);
+  const context = useContext(LogsContext)
   if (!context) {
-    throw new Error("useLogs must be used within LogsProvider");
+    throw new Error("useLogs must be used within LogsProvider")
   }
-  return context;
-};
+  return context
+}

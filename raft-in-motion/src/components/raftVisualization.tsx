@@ -110,7 +110,7 @@ export default function RaftVisualization() {
         {servers.map((server) => (
           <motion.div
             key={server.id}
-            className={`p-6 rounded-lg shadow-lg w-64 border-2 ${getServerColor(server)}`}
+            className={`p-6 rounded-lg shadow-lg w-64 border-4 ${getServerColor(server)}`}
             initial={{ scale: 0.9 }}
             animate={{
               scale: 1,
@@ -132,13 +132,13 @@ export default function RaftVisualization() {
               },
             }}
           >
-            <h3 className="text-lg font-semibold mb-2">Server {server.id}</h3>
+            <h3 className="text-xl font-medium text-gray-800 mb-2">Server {server.id}</h3>
             <div className="space-y-2">
               <p className="text-sm">
-                <span className="font-medium">State:</span> <span className={getTextColor(server)}>{server.state}</span>
+                <span className="font-medium text-gray-600">State:</span> <span className={getTextColor(server)}>{server.state}</span>
               </p>
               <p className="text-sm">
-                <span className="font-medium">Term:</span> {server.term}
+                <span className="font-medium text-gray-600">Term:</span> {server.term}
               </p>
             </div>
           </motion.div>

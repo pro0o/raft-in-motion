@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,13 @@ var upgrader = websocket.Upgrader{
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Parse rate from query parameters
+	rate, err := strconv.Atoi(r.URL.Query().Get("rate"))
+	if err != nil || rate <= 0 {
+		log.Warn().Msg("Invalid or missing rate parameter, using default rate of 1")
+		rate = 1
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Upgrade error")
@@ -41,43 +49,46 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	go client.ReadLoop(c)
 	go client.WriteLoop(c)
 
-	// --------------------------------------------------------
-	// EXTRACT THE REQUEST TYPE: "/ws/put" or "/ws/get" or ...
-	// --------------------------------------------------------
-	// r.URL.Path might be "/ws/put" or "/ws/get" (depending on your route).
-	// So we trim off the "/ws/" portion:
+	// Extract the request type
 	action := strings.TrimPrefix(r.URL.Path, "/ws/")
 
-	switch action {
-	case "put":
-		go func() {
-			ctx, cancel := context.WithTimeout(h.ctx, 5*time.Second)
-			defer cancel()
-
-			_, _, err := c1.Put(ctx, "key", "value")
-			if err != nil {
-				log.Error().Err(err).Msgf("Error in Put operation for client %p", c)
+	// Process requests based on rate
+	go func() {
+		for i := 0; i < rate; i++ {
+			select {
+			case <-c.Closed:
 				return
+			default:
+				ctx, cancel := context.WithTimeout(h.ctx, 5*time.Second)
+
+				switch action {
+				case "put":
+					_, _, err := c1.Put(ctx, "key", "value")
+					if err != nil {
+						log.Error().Err(err).Msgf("Error in Put operation %d for client %p", i+1, c)
+					} else {
+						log.Info().Msgf("Put operation %d succeeded for client %p", i+1, c)
+					}
+				case "get":
+					_, _, err := c1.Get(ctx, "key")
+					if err != nil {
+						log.Error().Err(err).Msgf("Error in Get operation %d for client %p", i+1, c)
+					} else {
+						log.Info().Msgf("Get operation %d succeeded for client %p", i+1, c)
+					}
+				default:
+					log.Warn().Msg("No recognized action from URL path, skipping operation.")
+					cancel()
+					return
+				}
+
+				cancel()
+
+				// Add a small delay between requests to prevent overwhelming the system
+				time.Sleep(50 * time.Millisecond)
 			}
-
-			log.Info().Msgf("Put operation succeeded for client %p", c)
-		}()
-	case "get":
-		go func() {
-			ctx, cancel := context.WithTimeout(h.ctx, 5*time.Second)
-			defer cancel()
-
-			_, _, err := c1.Get(ctx, "key")
-			if err != nil {
-				log.Error().Err(err).Msgf("Error in Get operation for client %p", c)
-				return
-			}
-
-			log.Info().Msgf("Get operation succeeded for client %p", c)
-		}()
-	default:
-		log.Warn().Msg("No recognized action from URL path, skipping put/get calls.")
-	}
+		}
+	}()
 
 	go func() {
 		<-c.Closed
@@ -92,7 +103,6 @@ func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "3:04:05PM"})
 
-	// IMPORTANT: Use "/ws/" so that URLs like "/ws/get" or "/ws/put" will be routed here.
 	http.HandleFunc("/ws/", handleWebSocket)
 	log.Info().Msg("WS Server started on :8081")
 	if err := http.ListenAndServe(":8081", nil); err != nil {
