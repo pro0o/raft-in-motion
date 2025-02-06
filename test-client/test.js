@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 
 const action = process.argv[2] || 'put';
-const ws = new WebSocket(`ws://localhost:8081/ws/${action}`);
+const ws = new WebSocket(`ws://localhost:8081/ws/${action}?rate=3`);
 
 const messageQueue = [];
 
