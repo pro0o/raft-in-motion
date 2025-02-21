@@ -1,0 +1,90 @@
+[
+  {
+    "event": "SendVote",
+    "timestamp": 1676558000,
+    "raftID": 2,
+    "term": 5,
+    "voteGranted": false,
+    "state": 1,
+    "to": 3
+  },
+  {
+    "event": "ReceiveVote",
+    "timestamp": 1676558050,
+    "raftID": 2,
+    "term": 5,
+    "voteGranted": true,
+    "state": 1,
+    "from": 1
+  },
+  {
+    "event": "ElectionTimerStarted",
+    "timestamp": 1676558196,
+    "raftID": 2,
+    "term": 0,
+    "timeout": 190
+  },
+  {
+    "event": "ElectionTimeoutReached",
+    "timestamp": 1676558196,
+    "raftID": 2,
+    "term": 1,
+    "state": 1
+  },
+  {
+    "event": "ElectionTimerStopped",
+    "timestamp": 1676558196,
+    "raftID": 2,
+    "state": 1
+  },  
+  {
+    "event": "StateTransition",
+    "timestamp": 1676558196,
+    "raftID": 2,
+    "term": 1,
+    "state": "candidate"
+  },
+  {
+    "event": "Put/GetRequestInitiated/Completed",
+    "timestamp": 1676558202,
+    "clientID": 1,
+    "kvID": 101,
+    "key": "key0",
+    "value": "value0"
+  },
+  {
+    "event": "FollwerCrashInitiated/DisconnectingServer/ServiceCrashComplete",
+    "timestamp": 1676558210,
+    "raftID": 0
+  },
+  {
+    "event": "VoteFailure",
+    "timestamp": 1676558210,
+    "raftID": 2,
+    "to": 1
+  },
+  {
+    "event": "ElectionWon",
+    "timestamp": 1676558210,
+    "raftID": 2,
+    "to": 1
+  },
+  {
+    "event": "ElectionLost",
+    "timestamp": 1676558210,
+    "raftID": 2
+  },
+  {
+    "event": "ServerListening",
+    "timestamp": 1676558196,
+    "raftID": 0,
+    "address": "[::]:46021"
+  },
+  {
+    "event": "PeerConnected",
+    "timestamp": 1676558196,
+    "raftID": 0,
+    "to": 1,
+    "address": "[::]:39863"
+  }  
+]

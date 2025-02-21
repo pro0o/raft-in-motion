@@ -193,3 +193,71 @@ func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 		return
 	}
 }
+
+func (h *Harness) DisconnectServiceFromPeers(id int) {
+	// tlog("Disconnect %d", id)
+	h.kvCluster[id].DisconnectFromAllRaftPeers()
+	for j := 0; j < h.n; j++ {
+		if j != id {
+			h.kvCluster[j].DisconnectFromRaftPeer(id)
+		}
+	}
+	h.connected[id] = false
+}
+
+func (h *Harness) ReconnectServiceToPeers(id int) {
+	// tlog("Reconnect %d", id)
+	for j := 0; j < h.n; j++ {
+		if j != id && h.alive[j] {
+			if err := h.kvCluster[id].ConnectToRaftPeer(j, h.kvCluster[j].GetRaftListenAddr()); err != nil {
+				// h.t.Fatal(err)
+				return
+			}
+			if err := h.kvCluster[j].ConnectToRaftPeer(id, h.kvCluster[id].GetRaftListenAddr()); err != nil {
+				// h.t.Fatal(err)
+				return
+			}
+		}
+	}
+	h.connected[id] = true
+}
+
+// CrashService "crashes" a service by disconnecting it from all peers and
+// then asking it to shut down. We're not going to be using the same service
+// instance again.
+func (h *Harness) CrashService(id int) {
+	// tlog("Crash %d", id)
+	h.DisconnectServiceFromPeers(id)
+	h.alive[id] = false
+	if err := h.kvCluster[id].Shutdown(); err != nil {
+		return
+		// h.t.Errorf("error while shutting down service %d: %v", id, err)
+	}
+}
+
+// RestartService "restarts" a service by creating a new instance and
+// connecting it to peers.
+// RestartService "restarts" a service by creating a new instance and
+// connecting it to peers.
+func (h *Harness) RestartService(id int) {
+	if h.alive[id] {
+		log.Fatalf("id=%d is alive in RestartService", id)
+	}
+
+	peerIds := make([]int, 0)
+	for p := range h.n {
+		if p != id {
+			peerIds = append(peerIds, p)
+		}
+	}
+	ready := make(chan any)
+
+	// Create a new KVService instance with a client
+	h.kvCluster[id] = server.New(id, peerIds, h.storage[id], ready, h.client)
+	h.kvCluster[id].ServeHTTP(14200 + id)
+
+	h.ReconnectServiceToPeers(id)
+	close(ready)
+	h.alive[id] = true
+	time.Sleep(20 * time.Millisecond)
+}

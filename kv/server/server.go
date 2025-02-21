@@ -6,14 +6,11 @@ package server
 import (
 	"context"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog/log"
 
 	"main/client"
 	"main/kv/types"
@@ -263,23 +260,23 @@ func (kvs *KVService) popCommitSubscription(logIndex int) chan raft.CommitEntry 
 // kvlog logs a message if the DebugKV flag is enabled.
 func (kvs *KVService) kvlog(event string, details map[string]interface{}) {
 	if DebugKV > 0 {
-		logEntry := map[string]interface{}{
-			"kvID":      kvs.id,
-			"event":     event,
-			"timestamp": time.Now().UnixNano(),
-		}
+		// logEntry := map[string]interface{}{
+		// 	"kvID":      kvs.id,
+		// 	"event":     event,
+		// 	"timestamp": time.Now().UnixNano(),
+		// }
 
-		for key, value := range details {
-			logEntry[key] = value
-		}
+		// for key, value := range details {
+		// 	logEntry[key] = value
+		// }
 
-		jsonLog, err := json.Marshal(logEntry)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
-			return
-		}
+		// jsonLog, err := json.Marshal(logEntry)
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
+		// 	return
+		// }
 
-		kvs.client.AddLog("KV", kvs.id, string(jsonLog))
+		// kvs.client.AddLog("KV", kvs.id, string(jsonLog))
 	}
 }
 

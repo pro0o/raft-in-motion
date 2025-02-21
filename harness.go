@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -83,6 +85,7 @@ func NewHarness(n int, c *clit.Client) *Harness {
 		}
 		connected[i] = true
 	}
+	time.Sleep(500 * time.Millisecond)
 	close(ready)
 
 	// Each KVService instance serves a REST API on a different port
@@ -140,29 +143,32 @@ func (h *Harness) NewClient(c *clit.Client) *client.KVClient {
 	}
 	return client.New(addrs, c)
 }
-
 func (h *Harness) CheckSingleLeader() int {
 	for r := 0; r < 8; r++ {
 		leaderId := -1
-		for i := range h.kvCluster {
+		for i := range h.n {
 			if h.connected[i] && h.kvCluster[i].IsLeader() {
 				if leaderId < 0 {
 					leaderId = i
 				} else {
+					log.Error().Msgf("Multiple leaders detected: %d and %d", leaderId, i)
 					return -1
 				}
 			}
 		}
 		if leaderId >= 0 {
+			log.Info().Msgf("Leader found: server %d", leaderId)
 			return leaderId
 		}
-		time.Sleep(150 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
+
+	log.Error().Msg("No leader found after timeout")
 	return -1
 }
 
 func (h *Harness) CheckPut(c *client.KVClient, key, value string) (string, bool) {
-	ctx, cancel := context.WithTimeout(h.ctx, 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(h.ctx, 300*time.Millisecond)
 	defer cancel()
 	pv, f, err := c.Put(ctx, key, value)
 	if err != nil {
@@ -186,5 +192,115 @@ func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 	}
 	if gv != wantValue {
 		log.Warn().Msgf("Value mismatch for key %s: got %s, want %s", key, gv, wantValue)
+	}
+}
+
+func (h *Harness) DisconnectServiceFromPeers(id int) {
+	log.Info().Int("service_id", id).Msg("Disconnecting service from all peers")
+	h.kvCluster[id].DisconnectFromAllRaftPeers()
+	for j := 0; j < h.n; j++ {
+		if j != id {
+			h.kvCluster[j].DisconnectFromRaftPeer(id)
+		}
+	}
+	h.connected[id] = false
+	log.Info().Int("service_id", id).Msg("Service disconnected from all peers")
+}
+
+func (h *Harness) ReconnectServiceToPeers(id int) {
+	log.Info().Int("service_id", id).Msg("Reconnecting service to peers")
+	for j := 0; j < h.n; j++ {
+		if j != id && h.alive[j] {
+			if err := h.kvCluster[id].ConnectToRaftPeer(j, h.kvCluster[j].GetRaftListenAddr()); err != nil {
+				log.Error().Err(err).Int("service_id", id).Int("peer_id", j).
+					Msg("Failed to connect service to peer")
+				return
+			}
+			if err := h.kvCluster[j].ConnectToRaftPeer(id, h.kvCluster[id].GetRaftListenAddr()); err != nil {
+				log.Error().Err(err).Int("service_id", id).Int("peer_id", j).
+					Msg("Failed to connect peer to service")
+				return
+			}
+		}
+	}
+	h.connected[id] = true
+	log.Info().Int("service_id", id).Msg("Service reconnected to all peers")
+}
+
+func (h *Harness) CrashService(id int) {
+	log.Info().Int("service_id", id).Msg("Crashing service")
+	h.DisconnectServiceFromPeers(id)
+	h.alive[id] = false
+	if err := h.kvCluster[id].Shutdown(); err != nil {
+		log.Error().Err(err).Int("service_id", id).Msg("Error while shutting down service")
+		return
+	}
+	log.Info().Int("service_id", id).Msg("Service crashed successfully")
+}
+
+func (h *Harness) RestartService(id int) {
+	if h.alive[id] {
+		log.Error().Int("service_id", id).Msg("Cannot restart: service is still alive")
+		return
+	}
+
+	log.Info().Int("service_id", id).Msg("Restarting service")
+	peerIds := make([]int, 0)
+	for p := range h.n {
+		if p != id {
+			peerIds = append(peerIds, p)
+		}
+	}
+	ready := make(chan any)
+
+	// Create a new KVService instance with a client
+	h.kvCluster[id] = server.New(id, peerIds, h.storage[id], ready, h.c)
+	h.kvCluster[id].ServeHTTP(14200 + id)
+
+	h.ReconnectServiceToPeers(id)
+	close(ready)
+	h.alive[id] = true
+
+	time.Sleep(20 * time.Millisecond)
+	log.Info().Int("service_id", id).Msg("Service restarted successfully")
+}
+
+func (h *Harness) NewClientWithRandomAddrsOrder() *client.KVClient {
+	var addrs []string
+	for i := range h.kvCluster {
+		if h.alive[i] {
+			addrs = append(addrs, h.kvServiceAddrs[i])
+		}
+	}
+	rand.Shuffle(len(addrs), func(i, j int) {
+		addrs[i], addrs[j] = addrs[j], addrs[i]
+	})
+	return client.New(addrs, h.c)
+}
+
+func (h *Harness) NewClientSingleService(id int) *client.KVClient {
+	addrs := h.kvServiceAddrs[id : id+1]
+	return client.New(addrs, h.c)
+}
+
+func (h *Harness) CheckGetNotFound(c *client.KVClient, key string) {
+	ctx, cancel := context.WithTimeout(h.ctx, 500*time.Millisecond)
+	defer cancel()
+	_, f, err := c.Get(ctx, key)
+	if err != nil {
+		log.Error().Err(err).Msg("Get error")
+		return
+	}
+	if f {
+		log.Warn().Msgf("Key unexpectedly found: %s", key)
+	}
+}
+
+func (h *Harness) CheckGetTimesOut(c *client.KVClient, key string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, _, err := c.Get(ctx, key)
+	if err == nil || !strings.Contains(err.Error(), "deadline exceeded") {
+		log.Error().Err(err).Msg("Expected deadline exceeded error")
 	}
 }

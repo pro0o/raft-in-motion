@@ -8,7 +8,6 @@ RUN go mod download
 COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o server .
 
-# Create a small final image
 FROM alpine:latest
 
 WORKDIR /root/

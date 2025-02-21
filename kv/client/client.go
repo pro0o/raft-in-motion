@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 const DebugClient = 1
@@ -84,7 +82,7 @@ FindLeader:
 			if contextDone(ctx) {
 				c.clientlog("Parent context canceled or deadline exceeded", nil)
 				retryCtxCancel()
-				return err
+				return nil
 			} else if contextDeadlineExceeded(retryCtx) {
 				c.clientlog("Timed out contacting server", map[string]interface{}{
 					"path": path,
@@ -94,7 +92,7 @@ FindLeader:
 				continue FindLeader
 			}
 			retryCtxCancel()
-			return err
+			return nil
 		}
 
 		// c.clientlog("ReceivedResponse", map[string]interface{}{
@@ -129,23 +127,23 @@ FindLeader:
 // clientlog writes minimal logs if DebugClient > 0.
 func (cl *KVClient) clientlog(event string, details map[string]interface{}) {
 	if DebugClient > 0 {
-		logEntry := map[string]interface{}{
-			"clientID":  cl.clientID,
-			"event":     event,
-			"timestamp": time.Now().UnixNano(),
-		}
+		// logEntry := map[string]interface{}{
+		// 	"clientID":  cl.clientID,
+		// 	"event":     event,
+		// 	"timestamp": time.Now().UnixNano(),
+		// }
 
-		for key, value := range details {
-			logEntry[key] = value
-		}
+		// for key, value := range details {
+		// 	logEntry[key] = value
+		// }
 
-		jsonLog, err := json.Marshal(logEntry)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
-			return
-		}
+		// jsonLog, err := json.Marshal(logEntry)
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
+		// 	return
+		// }
 
-		cl.client.AddLog("Client", int(cl.clientID), string(jsonLog))
+		// cl.client.AddLog("Client", int(cl.clientID), string(jsonLog))
 	}
 }
 

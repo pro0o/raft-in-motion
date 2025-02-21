@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
@@ -19,11 +20,8 @@ func (rf *Raft) runElectionTimer() {
 	termStarted := rf.currentTerm
 	rf.mu.Unlock()
 
-	rf.dlog("ElectionTimerStarted", map[string]interface{}{
-		"duration": timeoutDuration,
-		"term":     termStarted,
-	})
-
+	log.Printf("[Election Timer] Started for term %d with timeout %v", termStarted, timeoutDuration)
+	// rf.logElectionTimerStarted()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -33,26 +31,24 @@ func (rf *Raft) runElectionTimer() {
 		rf.mu.Lock()
 		// Exit if the node is no longer a follower or candidate
 		if rf.state != Candidate && rf.state != Follower {
-			// rf.dlog("ElectionTimerStopped", map[string]interface{}{
-			// 	"reason": "state_changed",
-			// 	"state":  rf.state,
-			// })
+			log.Printf("[Election Timer] Stopped due to state change: %v", rf.state)
+			// rf.logElectionTimerStopped()
 			rf.mu.Unlock()
 			return
 		}
 
 		// Stop timer if the term changes
 		if termStarted != rf.currentTerm {
-			// rf.dlog("ElectionTimerTermChanged", map[string]interface{}{
-			// 	"oldTerm": termStarted,
-			// 	"newTerm": rf.currentTerm,
-			// })
+			log.Printf("[Election Timer] Stopped due to term change: oldTerm=%d, newTerm=%d", termStarted, rf.currentTerm)
+			// rf.logElectionTimerStopped()
 			rf.mu.Unlock()
 			return
 		}
 
 		// If timeout occurs, start a new election
 		if time.Since(rf.electionResetEvent) >= timeoutDuration {
+			log.Printf("[Election Timer] Timeout reached, starting election for term %d", rf.currentTerm+1)
+			// rf.logElectionTimeout(int(timeoutDuration.Seconds() * 1000))
 			rf.startElection()
 			rf.mu.Unlock()
 			return
@@ -68,25 +64,22 @@ func (rf *Raft) startElection() {
 	rf.electionResetEvent = time.Now()
 	rf.votedFor = rf.id
 
-	rf.dlog("StateTransition", map[string]interface{}{
-		"newState": "Candidate",
-		"term":     savedCurrentTerm,
-	})
-
+	log.Printf("[Election] Node %d became Candidate for term %d", rf.id, savedCurrentTerm)
+	// rf.logState(client.Follower, client.Candidate)
 	// We'll collect votes here (but not counting our own yet).
 	votesReceived := 0
-
-	// How many peer replies are we expecting in total?
 	repliesNeeded := len(rf.peerIds)
 
 	// Send RequestVote RPC to all other servers
 	for _, peerId := range rf.peerIds {
 		go func(pid int) {
 			// Grab the log state under the lock
+			// rf.logRequestVote(pid)
 			rf.mu.Lock()
 			savedLastLogIndex, savedLastLogTerm := rf.lastLogIndexAndTerm()
 			rf.mu.Unlock()
 
+			log.Printf("[Election] Sending RequestVote to peer %d for term %d", pid, savedCurrentTerm)
 			args := RequestVoteArgs{
 				Term:         savedCurrentTerm,
 				CandidateId:  rf.id,
@@ -97,67 +90,48 @@ func (rf *Raft) startElection() {
 			var reply RequestVoteReply
 			err := rf.server.Call(pid, "Raft.RequestVote", args, &reply)
 
-			// Re-acquire the lock to modify shared state
 			rf.mu.Lock()
 			defer rf.mu.Unlock()
 
-			// We'll consider this peer's response "done" whether
-			// it succeeded or failed, so decrement `repliesNeeded`.
 			repliesNeeded--
 
 			if err == nil {
-				rf.dlog("RequestVoteReplyReceived", map[string]interface{}{
-					"from":        pid,
-					"term":        reply.Term,
-					"voteGranted": reply.VoteGranted,
-				})
-
-				// Ignore if we're no longer a candidate.
+				log.Printf("[Election] Received RequestVoteReply from %d: term=%d, voteGranted=%v", pid, reply.Term, reply.VoteGranted)
+				// rf.logReceiveVote(pid, reply.VoteGranted)
 				if rf.state != Candidate {
-					rf.dlog("RequestVoteIgnored", map[string]interface{}{
-						"reason": "not_candidate",
-						"state":  rf.state,
-					})
+					log.Printf("[Election] Ignoring vote as node is no longer a candidate (state=%v)", rf.state)
 				} else {
-					// If reply indicates a higher term, revert to follower.
 					if reply.Term > savedCurrentTerm {
-						rf.dlog("TermMismatch", map[string]interface{}{
-							"receivedTerm": reply.Term,
-							"currentTerm":  savedCurrentTerm,
-						})
+						log.Printf("[Election] Term mismatch detected (received %d, current %d), reverting to Follower", reply.Term, savedCurrentTerm)
 						rf.becomeFollower(reply.Term)
 					} else if reply.Term == savedCurrentTerm && reply.VoteGranted {
-						// Count their vote
 						votesReceived++
+						log.Printf("[Election] Vote granted from %d, total votes: %d", pid, votesReceived)
 					}
 				}
+			} else {
+				// rf.logVoteFailure(pid)
+				log.Printf("[Election] Failed to receive vote response from %d: %v", pid, err)
 			}
 
-			// If we've heard from *all* peers, finalize the election.
 			if repliesNeeded == 0 {
-				// Add our own self-vote now, after collecting all other votes.
 				votesReceived++
 
-				// Double-check: are we still a candidate?
 				if rf.state == Candidate {
-					// Check if we have a majority
 					if votesReceived*2 > len(rf.peerIds)+1 {
-						rf.dlog("LeaderElected", map[string]interface{}{
-							"term":          savedCurrentTerm,
-							"votesReceived": votesReceived,
-						})
 						rf.startLeader()
+						// rf.logElectionWon()
+						log.Printf("[Election] Node %d won the election for term %d with %d votes", rf.id, savedCurrentTerm, votesReceived)
 						return
+					} else {
+						// rf.logElectionLost()
+						log.Printf("[Election] Node %d lost the election for term %d (votes: %d)", rf.id, savedCurrentTerm, votesReceived)
 					}
 				}
-				// If we didn't become leader, or we're no longer candidate,
-				// just restart the election timer.
 				go rf.runElectionTimer()
 			}
 		}(peerId)
 	}
 
-	// In case nothing finalizes early, we can also keep the election timer running
-	// so we don't get stuck indefinitely if some peers never respond at all.
 	go rf.runElectionTimer()
 }

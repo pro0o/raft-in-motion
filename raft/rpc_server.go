@@ -1,4 +1,3 @@
-// SKELETON
 package raft
 
 import (
@@ -50,6 +49,7 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 
 	defer func() {
 		s.mu.Lock()
+		// log.Printf("NewServer: Initializing Raft with serverId %d", s.serverId) // Debugging point
 		s.mu.Unlock()
 		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, c)
 	}()
@@ -74,6 +74,7 @@ func (s *Server) Serve() {
 		return
 	}
 	log.Info().Int("serverId", s.serverId).Str("addr", s.listener.Addr().String()).Msg("Server is listening on TCP address")
+	// log.Printf("Serve: Listening on address %s", s.listener.Addr()) // Debugging point
 	s.mu.Unlock()
 
 	// Accept connections in a loop.
@@ -86,12 +87,14 @@ func (s *Server) Serve() {
 				select {
 				case <-s.quit:
 					// The server is shutting down intentionally.
+					log.Printf("Serve: Server shutting down.") // Debugging point
 					return
 				default:
 					log.Error().Err(err).Msg("Accept error while listening for RPC connections")
 				}
 			} else {
 				// Serve each new connection in its own goroutine.
+				log.Printf("Serve: Accepted new connection.") // Debugging point
 				s.wg.Add(1)
 				go func() {
 					s.rpcServer.ServeConn(conn)
@@ -104,6 +107,7 @@ func (s *Server) Serve() {
 
 // Submit asks Raft to replicate a command. Returns the log index if this server is leader, else -1.
 func (s *Server) Submit(cmd any) int {
+	// log.Printf("Submit: Submitting command to Raft, serverId %d", s.serverId) // Debugging point
 	return s.rf.Submit(cmd)
 }
 
@@ -111,6 +115,7 @@ func (s *Server) Submit(cmd any) int {
 func (s *Server) DisconnectAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// log.Printf("DisconnectAll: Disconnecting all peers from serverId %d", s.serverId) // Debugging point
 	for id := range s.peerClients {
 		if s.peerClients[id] != nil {
 			_ = s.peerClients[id].Close() // ignoring close error
@@ -123,6 +128,7 @@ func (s *Server) DisconnectAll() {
 // Shutdown stops the Raft instance, closes the listener, and waits for background goroutines.
 func (s *Server) Shutdown() {
 	log.Info().Int("serverId", s.serverId).Msg("Server shutdown initiated")
+	// log.Printf("Shutdown: Shutting down serverId %d", s.serverId) // Debugging point
 	s.rf.Kill()
 
 	close(s.quit)
@@ -135,6 +141,7 @@ func (s *Server) Shutdown() {
 func (s *Server) GetListenAddr() net.Addr {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// log.Printf("GetListenAddr: Fetching listen address for serverId %d", s.serverId) // Debugging point
 	return s.listener.Addr()
 }
 
@@ -151,6 +158,7 @@ func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 		}
 		s.peerClients[peerId] = client
 		log.Info().Int("serverId", s.serverId).Int("peerId", peerId).Str("addr", addr.String()).Msg("Connected to peer")
+		// log.Printf("ConnectToPeer: Connected to peerId %d at %s", peerId, addr.String()) // Debugging point
 	}
 	return nil
 }
@@ -167,6 +175,7 @@ func (s *Server) DisconnectPeer(peerId int) error {
 			log.Error().Err(err).Int("peerId", peerId).Msg("Failed to disconnect from peer")
 		} else {
 			log.Info().Int("peerId", peerId).Msg("Disconnected from peer")
+			// log.Printf("DisconnectPeer: Disconnected from peerId %d", peerId) // Debugging point
 		}
 		return err
 	}
@@ -180,15 +189,17 @@ func (s *Server) Call(id int, serviceMethod string, args any, reply any) error {
 	s.mu.Unlock()
 
 	if peer == nil {
-		log.Error().Int("clientId", id).Msg("Attempted to call peer RPC after client connection was closed")
+		// log.Error().Int("clientId", id).Msg("Attempted to call peer RPC after client connection was closed")
 		return fmt.Errorf("call client %d after it's closed", id)
 	}
+	// log.Printf("Call: Calling method %s on peerId %d", serviceMethod, id) // Debugging point
 	return s.rpcProxy.Call(peer, serviceMethod, args, reply)
 }
 
 // IsLeader returns true if this server's Raft instance is leader.
 func (s *Server) IsLeader() bool {
 	_, _, isLeader := s.rf.Report()
+	// log.Printf("IsLeader: Checking if serverId %d is leader, result: %v", s.serverId, isLeader) // Debugging point
 	return isLeader
 }
 
@@ -218,32 +229,20 @@ func NewProxy(rf *Raft) *RPCProxy {
 
 // RequestVote simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error {
+	// log.Printf("RequestVote: Simulating RequestVote RPC") // Debugging point
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		switch dice {
 		case 9:
 			// Drop the RPC.
-			// rpp.rf.dlog("RPCDrop", map[string]interface{}{
-			// 	"rpcType": "RequestVote",
-			// 	"reason":  "reliability test",
-			// })
 			return fmt.Errorf("RPC dropped by proxy")
 		case 8:
 			// Delay the RPC.
-			// rpp.rf.dlog("RPCDelay", map[string]interface{}{
-			// 	"rpcType": "RequestVote",
-			// 	"reason":  "reliability test",
-			// 	"delayMs": 75,
-			// })
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
 		// Slight random delay to simulate network latency
 		delay := time.Duration(1+rand.Intn(5)) * time.Millisecond
-		// rpp.rf.dlog("RPCSimulateDelay", map[string]interface{}{
-		// 	"rpcType": "RequestVote",
-		// 	"delayMs": delay.Milliseconds(),
-		// })
 		time.Sleep(delay)
 	}
 	return rpp.rf.RequestVote(args, reply)
@@ -251,32 +250,20 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 
 // AppendEntries simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
+	// log.Printf("AppendEntries: Simulating AppendEntries RPC") // Debugging point
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		switch dice {
 		case 9:
 			// Drop the RPC.
-			// rpp.rf.dlog("RPCDrop", map[string]interface{}{
-			// 	"rpcType": "AppendEntries",
-			// 	"reason":  "reliability test",
-			// })
 			return fmt.Errorf("RPC dropped by proxy")
 		case 8:
 			// Delay the RPC.
-			// rpp.rf.dlog("RPCDelay", map[string]interface{}{
-			// 	"rpcType": "AppendEntries",
-			// 	"reason":  "reliability test",
-			// 	"delayMs": 75,
-			// })
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
 		// Slight random delay to simulate network latency
 		delay := time.Duration(1+rand.Intn(5)) * time.Millisecond
-		// rpp.rf.dlog("RPCSimulateDelay", map[string]interface{}{
-		// 	"rpcType": "AppendEntries",
-		// 	"delayMs": delay.Milliseconds(),
-		// })
 		time.Sleep(delay)
 	}
 	return rpp.rf.AppendEntries(args, reply)
@@ -284,13 +271,10 @@ func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesR
 
 // Call checks if we should drop the call or forward it to the peer's RPC client.
 func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) error {
+	// log.Printf("RPCProxy Call: Calling %s method on peer", method) // Debugging point
 	rpp.mu.Lock()
 	if rpp.numCallsBeforeDrop == 0 {
 		rpp.mu.Unlock()
-		// rpp.rf.dlog("RPCDrop", map[string]interface{}{
-		// 	"rpcType": method,
-		// 	"reason":  "forced drop",
-		// })
 		return fmt.Errorf("RPC forcibly dropped by proxy")
 	}
 	if rpp.numCallsBeforeDrop > 0 {
@@ -306,19 +290,14 @@ func (rpp *RPCProxy) Call(peer *rpc.Client, method string, args any, reply any) 
 func (rpp *RPCProxy) DropCallsAfterN(n int) {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-	// rpp.rf.dlog("RPCDropConfig", map[string]interface{}{
-	// 	"action":    "drop_after_n",
-	// 	"remaining": n,
-	// })
 	rpp.numCallsBeforeDrop = n
+	// log.Printf("DropCallsAfterN: Dropping calls after %d more calls", n) // Debugging point
 }
 
 // DontDropCalls configures the proxy to never drop calls.
 func (rpp *RPCProxy) DontDropCalls() {
 	rpp.mu.Lock()
 	defer rpp.mu.Unlock()
-	// rpp.rf.dlog("RPCDropConfig", map[string]interface{}{
-	// 	"action": "dont_drop",
-	// })
 	rpp.numCallsBeforeDrop = -1
+	// log.Printf("DontDropCalls: No longer dropping RPC calls.") // Debugging point
 }

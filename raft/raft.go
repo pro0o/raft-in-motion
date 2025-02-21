@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"encoding/json"
 	"main/client"
 	"sync"
 	"time"
@@ -130,46 +129,15 @@ func (rf *Raft) Kill() {
 		rf.mu.Unlock()
 		return
 	}
+	// rf.logState(client.RfState(rf.state), client.RfState(Dead))
 
 	rf.state = Dead
-	rf.dlog("StateTransition", map[string]interface{}{
-		"newState": "Dead",
-		"reason":   "Kill method called",
-	})
 
 	close(rf.newCommitReadyChan)
 	close(rf.triggerAEChan)
 
 	rf.mu.Unlock()
 
-	rf.dlog("NodeCleanup", map[string]interface{}{
-		"raftID":    rf.id,
-		"timestamp": time.Now().UnixNano(),
-	})
-}
-
-// dlog writes structured logs if DebugRF > 0, using the provided client logger.
-func (rf *Raft) dlog(event string, details map[string]interface{}) {
-	if DebugRF > 0 {
-		logEntry := map[string]interface{}{
-			"raftID":    rf.id,
-			"term":      rf.currentTerm,
-			"event":     event,
-			"timestamp": time.Now().UnixNano(),
-		}
-
-		for key, value := range details {
-			logEntry[key] = value
-		}
-
-		jsonLog, err := json.Marshal(logEntry)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to marshal log entry to JSON")
-			return
-		}
-
-		rf.client.AddLog("Raft", rf.id, string(jsonLog))
-	}
 }
 
 // Make initializes a Raft instance. The `ready` channel is used to signal
@@ -199,7 +167,6 @@ func Make(
 	rf.matchIndex = make(map[int]int)
 	rf.client = c
 
-	// If we have data in storage, restore it (e.g. after a restart).
 	if rf.storage.HasData() {
 		rf.restoreFromStorage()
 	}
@@ -218,13 +185,10 @@ func Make(
 	return rf
 }
 
-// becomeFollower transitions the node to Follower state in the given term.
 func (rf *Raft) becomeFollower(term int) {
-	// rf.dlog("StateTransition", map[string]interface{}{
-	// 	"newState": "Follower",
-	// 	"term":     term,
-	// 	"log":      rf.log,
-	// })
+	// rf.logState(client.RfState(rf.state), client.RfState(Follower))
+
+	log.Printf("[State Change] Node %d became Follower for term %d", rf.id, term)
 	rf.state = Follower
 	rf.currentTerm = term
 	rf.votedFor = -1
@@ -241,13 +205,9 @@ func (rf *Raft) startLeader() {
 		rf.nextIndex[peerId] = len(rf.log)
 		rf.matchIndex[peerId] = -1
 	}
-	rf.dlog("StateTransition", map[string]interface{}{
-		"newState":   "Leader",
-		"term":       rf.currentTerm,
-		"nextIndex":  rf.nextIndex,
-		"matchIndex": rf.matchIndex,
-		"currentLog": rf.log,
-	})
+	// rf.logState(client.RfState(Candidate), client.RfState(Leader))
+
+	log.Printf("[Leader Election] Node %d became Leader for term %d", rf.id, rf.currentTerm)
 	// This goroutine regularly sends heartbeats (AppendEntries) or logs to followers.
 	go func(heartbeatTimeout time.Duration) {
 		rf.leaderSendHeartbeats() // Send an immediate set of heartbeats
