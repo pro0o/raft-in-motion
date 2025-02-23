@@ -1,4 +1,4 @@
-package client
+package logger
 
 import "time"
 
@@ -75,7 +75,7 @@ type StateTransitionLogEntry struct {
 	NewState RfState `json:"newState"`
 }
 
-type LogEntry interface {
+type LogEntries interface {
 	IsLogEntry()
 }
 

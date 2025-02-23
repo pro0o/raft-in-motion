@@ -35,7 +35,6 @@ type Server struct {
 	client *client.Client
 }
 
-// NewServer creates and returns a Server instance, setting up the underlying Raft.
 func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, commitChan chan<- CommitEntry, c *client.Client) *Server {
 	s := new(Server)
 	s.serverId = serverId
@@ -49,7 +48,6 @@ func NewServer(serverId int, peerIds []int, storage Storage, ready <-chan any, c
 
 	defer func() {
 		s.mu.Lock()
-		// log.Printf("NewServer: Initializing Raft with serverId %d", s.serverId) // Debugging point
 		s.mu.Unlock()
 		s.rf = Make(s.serverId, s.peerIds, s, s.storage, s.ready, s.commitChan, c)
 	}()
@@ -73,11 +71,13 @@ func (s *Server) Serve() {
 		s.mu.Unlock()
 		return
 	}
-	log.Info().Int("serverId", s.serverId).Str("addr", s.listener.Addr().String()).Msg("Server is listening on TCP address")
-	// log.Printf("Serve: Listening on address %s", s.listener.Addr()) // Debugging point
+	log.Info().
+		Int("raftID", s.serverId).
+		Str("address", s.listener.Addr().String()).
+		Msg("serverListening")
+
 	s.mu.Unlock()
 
-	// Accept connections in a loop.
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -86,15 +86,13 @@ func (s *Server) Serve() {
 			if err != nil {
 				select {
 				case <-s.quit:
-					// The server is shutting down intentionally.
-					log.Printf("Serve: Server shutting down.") // Debugging point
+					log.Printf("Serve: Server shutting down.")
 					return
 				default:
 					log.Error().Err(err).Msg("Accept error while listening for RPC connections")
 				}
 			} else {
-				// Serve each new connection in its own goroutine.
-				log.Printf("Serve: Accepted new connection.") // Debugging point
+				// log.Printf("Serve: Accepted new connection.")
 				s.wg.Add(1)
 				go func() {
 					s.rpcServer.ServeConn(conn)
@@ -105,39 +103,42 @@ func (s *Server) Serve() {
 	}()
 }
 
-// Submit asks Raft to replicate a command. Returns the log index if this server is leader, else -1.
 func (s *Server) Submit(cmd any) int {
-	// log.Printf("Submit: Submitting command to Raft, serverId %d", s.serverId) // Debugging point
 	return s.rf.Submit(cmd)
 }
 
-// DisconnectAll closes all existing peer client connections.
 func (s *Server) DisconnectAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// log.Printf("DisconnectAll: Disconnecting all peers from serverId %d", s.serverId) // Debugging point
+	log.Info().
+		Int("raftID", s.serverId).
+		Msg("disconnectionInitialized")
+
 	for id := range s.peerClients {
 		if s.peerClients[id] != nil {
 			_ = s.peerClients[id].Close() // ignoring close error
 			s.peerClients[id] = nil
 		}
 	}
-	log.Info().Int("serverId", s.serverId).Msg("Disconnected from all peers")
+	log.Info().
+		Int("raftID", s.serverId).
+		Msg("disconnectionComplete")
 }
 
-// Shutdown stops the Raft instance, closes the listener, and waits for background goroutines.
 func (s *Server) Shutdown() {
-	log.Info().Int("serverId", s.serverId).Msg("Server shutdown initiated")
-	// log.Printf("Shutdown: Shutting down serverId %d", s.serverId) // Debugging point
+	log.Info().
+		Int("raftID", s.serverId).
+		Msg("shutdownInitialized")
 	s.rf.Kill()
 
 	close(s.quit)
-	_ = s.listener.Close() // ignore error on close
+	_ = s.listener.Close()
 	s.wg.Wait()
-	log.Info().Int("serverId", s.serverId).Msg("Server shutdown complete")
+	log.Info().
+		Int("raftID", s.serverId).
+		Msg("shutdownComplete")
 }
 
-// GetListenAddr returns the address the server is listening on.
 func (s *Server) GetListenAddr() net.Addr {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -145,7 +146,6 @@ func (s *Server) GetListenAddr() net.Addr {
 	return s.listener.Addr()
 }
 
-// ConnectToPeer creates an RPC client to the given peer if it doesn't already exist.
 func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -157,8 +157,12 @@ func (s *Server) ConnectToPeer(peerId int, addr net.Addr) error {
 			return err
 		}
 		s.peerClients[peerId] = client
-		log.Info().Int("serverId", s.serverId).Int("peerId", peerId).Str("addr", addr.String()).Msg("Connected to peer")
-		// log.Printf("ConnectToPeer: Connected to peerId %d at %s", peerId, addr.String()) // Debugging point
+		log.Info().
+			Int("raftID", s.serverId).
+			Int("peer", peerId).
+			Str("address", addr.String()).
+			Msg("peerConnected")
+
 	}
 	return nil
 }
@@ -203,8 +207,6 @@ func (s *Server) IsLeader() bool {
 	return isLeader
 }
 
-// RPCProxy acts as a proxy for Raft's RPC methods, allowing us to manipulate
-// or drop messages for testing.
 type RPCProxy struct {
 	mu                 sync.Mutex
 	rf                 *Raft
@@ -214,12 +216,10 @@ type RPCProxy struct {
 	// >0: drop calls after the specified number
 }
 
-// Proxy returns the RPCProxy so tests can configure call drops, etc.
 func (s *Server) Proxy() *RPCProxy {
 	return s.rpcProxy
 }
 
-// NewProxy creates an RPCProxy for the given Raft instance.
 func NewProxy(rf *Raft) *RPCProxy {
 	return &RPCProxy{
 		rf:                 rf,
@@ -227,17 +227,13 @@ func NewProxy(rf *Raft) *RPCProxy {
 	}
 }
 
-// RequestVote simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) error {
-	// log.Printf("RequestVote: Simulating RequestVote RPC") // Debugging point
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {
 		dice := rand.Intn(10)
 		switch dice {
 		case 9:
-			// Drop the RPC.
 			return fmt.Errorf("RPC dropped by proxy")
 		case 8:
-			// Delay the RPC.
 			time.Sleep(75 * time.Millisecond)
 		}
 	} else {
@@ -248,7 +244,6 @@ func (rpp *RPCProxy) RequestVote(args RequestVoteArgs, reply *RequestVoteReply) 
 	return rpp.rf.RequestVote(args, reply)
 }
 
-// AppendEntries simulates an unreliable network by randomly dropping or delaying calls.
 func (rpp *RPCProxy) AppendEntries(args AppendEntriesArgs, reply *AppendEntriesReply) error {
 	// log.Printf("AppendEntries: Simulating AppendEntries RPC") // Debugging point
 	if len(os.Getenv("RAFT_UNRELIABLE_RPC")) > 0 {

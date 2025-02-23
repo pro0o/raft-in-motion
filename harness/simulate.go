@@ -1,4 +1,4 @@
-package main
+package harness
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func sleepMs(n int) {
 
 func initClient() *client.Client {
 	return &client.Client{
-		Send:   make(chan client.LogEntry),
+		Send:   make(chan string),
 		Closed: make(chan bool),
 		State:  client.Active,
 	}
@@ -48,6 +48,7 @@ func clientRequestBeforeConsensus() {
 	sleepMs(80)
 	log.Info().Msg("Client request before consensus test completed")
 }
+
 func basicPutGetSingleClient() {
 	log.Info().Msg("Running basic put/get single client test...")
 	c := initClient()
@@ -219,7 +220,7 @@ func crashFollowerTest() {
 	log.Info().Msg("Crash follower test completed")
 }
 
-func disconnectLeaderTest() {
+func DisconnectLeaderTest() {
 	log.Info().Msg("Running disconnect leader test...")
 	c := initClient()
 	h := NewHarness(3, c)
@@ -268,28 +269,4 @@ func disconnectLeaderTest() {
 	sleepMs(200)
 
 	log.Info().Msg("Disconnect leader test completed")
-}
-
-func main() {
-	log.Info().Msg("Starting harness tests...")
-
-	// fmt.Println("\n=== Running Setup Harness Test ===")
-	// setupHarness()
-
-	// fmt.Println("\n=== Running Client Request Before Consensus Test ===")
-	// clientRequestBeforeConsensus()
-
-	// fmt.Println("\n=== Running Basic Put/Get Single Client Test ===")
-	// basicPutGetSingleClient()
-
-	// fmt.Println("\n=== Running Crash Follower Test ===")
-	// crashFollowerTest()
-
-	fmt.Println("\n=== Running Disconnect Leader Test ===")
-	disconnectLeaderTest()
-
-	// fmt.Println("\n=== Running concurrent test ===")
-	// Test5ServerConcurrentClientsPutsAndGets()
-
-	log.Info().Msg("All tests completed successfully")
 }

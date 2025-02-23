@@ -42,7 +42,8 @@
     "timestamp": 1676558196,
     "raftID": 2,
     "term": 1,
-    "state": "candidate"
+    "oldState": "candidate",
+    "newState": "candidate"
   },
   {
     "event": "Put/GetRequestInitiated/Completed",

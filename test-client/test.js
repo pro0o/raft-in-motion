@@ -1,7 +1,6 @@
 const WebSocket = require('ws');
 
-const action = process.argv[2] || 'put';
-const ws = new WebSocket(`ws://localhost:8081/ws/${action}?rate=3`);
+const ws = new WebSocket(`ws://localhost:8081/ws`);
 
 const messageQueue = [];
 
@@ -19,7 +18,7 @@ setInterval(() => {
 }, 500); 
 
 ws.on('open', () => {
-    console.log(`Connected to WebSocket server via /ws/${action}`);
+    console.log(`Connected to WebSocket server via /ws/`);
     setTimeout(() => {
         ws.terminate();
         console.log('WebSocket connection forcefully terminated after 30 seconds');
@@ -28,6 +27,7 @@ ws.on('open', () => {
 
 ws.on('message', (message) => {
     messageQueue.push(message);
+    console.log(message)
 });
 
 ws.on('error', (error) => {

@@ -35,9 +35,9 @@ func (s RfState) String() string {
 }
 
 type CommitEntry struct {
-	Command any // client command
-	Index   int // log index at which the client cmd is committed.
-	Term    int // Raft term at which the client cmd is committed.
+	Command any
+	Index   int
+	Term    int
 }
 
 type LogEntry struct {
@@ -81,7 +81,6 @@ type Raft struct {
 	client *client.Client
 }
 
-// Helper function to return the last log's index and term.
 func (rf *Raft) lastLogIndexAndTerm() (int, int) {
 	if len(rf.log) > 0 {
 		lastIndex := len(rf.log) - 1
@@ -91,37 +90,28 @@ func (rf *Raft) lastLogIndexAndTerm() (int, int) {
 	}
 }
 
-// Report returns the ID, currentTerm, and whether this Raft is a leader.
 func (rf *Raft) Report() (id int, term int, isLeader bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	return rf.id, rf.currentTerm, rf.state == Leader
 }
 
-// Submit queues a new command to be appended to the Raft log.
-// Returns the index of the log entry if this Raft is the leader.
-// Otherwise returns -1.
 func (rf *Raft) Submit(command any) int {
 	rf.mu.Lock()
-	// If not the leader, reject the submit request.
 	if rf.state != Leader {
 		rf.mu.Unlock()
 		return -1
 	}
-	// This Raft is the leader, so append the command locally.
 	submitIndex := len(rf.log)
 	rf.log = append(rf.log, LogEntry{Command: command, Term: rf.currentTerm})
 	rf.persistToStorage()
 
-	// Unlock before triggering the heartbeat to avoid holding the lock too long.
 	rf.mu.Unlock()
 
-	// Notify the leader’s heartbeat/AppendEntries loop to replicate the new entry.
 	rf.triggerAEChan <- struct{}{}
 	return submitIndex
 }
 
-// Kill marks this Raft node as Dead and performs necessary cleanup.
 func (rf *Raft) Kill() {
 	rf.mu.Lock()
 
@@ -129,7 +119,10 @@ func (rf *Raft) Kill() {
 		rf.mu.Unlock()
 		return
 	}
-	// rf.logState(client.RfState(rf.state), client.RfState(Dead))
+	log.Info().
+		Int("raftID", rf.id).
+		Int("term", rf.currentTerm).
+		Msg("nodeDead")
 
 	rf.state = Dead
 
@@ -170,8 +163,6 @@ func Make(
 	if rf.storage.HasData() {
 		rf.restoreFromStorage()
 	}
-
-	// This goroutine waits until `ready` is signaled before starting the election timer.
 	go func() {
 		<-ready
 		rf.mu.Lock()
@@ -180,15 +171,18 @@ func Make(
 		rf.runElectionTimer()
 	}()
 
-	// The commitChanSender goroutine waits for new commits to be ready, and sends them to commitChan.
 	go rf.commitChanSender()
 	return rf
 }
 
 func (rf *Raft) becomeFollower(term int) {
-	// rf.logState(client.RfState(rf.state), client.RfState(Follower))
+	log.Info().
+		Int("raftID", rf.id).
+		Int("term", term).
+		Str("oldState", rf.state.String()).
+		Str("newState", Follower.String()).
+		Msg("stateTransition")
 
-	log.Printf("[State Change] Node %d became Follower for term %d", rf.id, term)
 	rf.state = Follower
 	rf.currentTerm = term
 	rf.votedFor = -1
@@ -197,20 +191,21 @@ func (rf *Raft) becomeFollower(term int) {
 	go rf.runElectionTimer()
 }
 
-// startLeader transitions the node to Leader state and initializes leader-specific
-// structures, then starts sending AppendEntries heartbeats.
 func (rf *Raft) startLeader() {
 	rf.state = Leader
 	for _, peerId := range rf.peerIds {
 		rf.nextIndex[peerId] = len(rf.log)
 		rf.matchIndex[peerId] = -1
 	}
-	// rf.logState(client.RfState(Candidate), client.RfState(Leader))
+	log.Info().
+		Int("raftID", rf.id).
+		Int("term", rf.currentTerm).
+		Str("oldState", Candidate.String()).
+		Str("newState", rf.state.String()).
+		Msg("stateTransition")
 
-	log.Printf("[Leader Election] Node %d became Leader for term %d", rf.id, rf.currentTerm)
-	// This goroutine regularly sends heartbeats (AppendEntries) or logs to followers.
 	go func(heartbeatTimeout time.Duration) {
-		rf.leaderSendHeartbeats() // Send an immediate set of heartbeats
+		rf.leaderSendHeartbeats()
 
 		t := time.NewTimer(heartbeatTimeout)
 		defer t.Stop()
@@ -220,18 +215,15 @@ func (rf *Raft) startLeader() {
 			select {
 			case <-t.C:
 				doSend = true
-				// Reset the timer for the next heartbeat.
 				t.Stop()
 				t.Reset(heartbeatTimeout)
 
 			case _, ok := <-rf.triggerAEChan:
-				// If channel is closed, stop.
 				if !ok {
 					return
 				}
 				doSend = true
 
-				// Reset the timer, discarding any pending trigger.
 				if !t.Stop() {
 					<-t.C
 				}
@@ -239,7 +231,6 @@ func (rf *Raft) startLeader() {
 			}
 
 			if doSend {
-				// Check if we are still leader before sending.
 				rf.mu.Lock()
 				if rf.state != Leader {
 					rf.mu.Unlock()
