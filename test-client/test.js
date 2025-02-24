@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const ws = new WebSocket(`ws://localhost:8081/ws`);
+const ws = new WebSocket('ws://localhost:8081/ws');
 
 const messageQueue = [];
 
@@ -9,25 +9,24 @@ setInterval(() => {
         const message = messageQueue.shift();
         try {
             const parsedMessage = JSON.parse(message);
-            console.log('\nEvent:', parsedMessage.event);
             console.log(JSON.stringify(parsedMessage, null, 2));
-        } catch {
-            console.log('Received:', message.toString());
+        } catch (err) {
+            console.log('Received non-JSON message:', message.toString());
+            console.error('Error parsing message:', err);
         }
     }
-}, 500); 
+}, 500);
 
 ws.on('open', () => {
-    console.log(`Connected to WebSocket server via /ws/`);
+    console.log('Connected to WebSocket server via /ws/');
     setTimeout(() => {
+        console.log('Forcefully terminating WebSocket connection after 30 seconds...');
         ws.terminate();
-        console.log('WebSocket connection forcefully terminated after 30 seconds');
-    }, 30000);
+    }, 50000);
 });
 
 ws.on('message', (message) => {
     messageQueue.push(message);
-    console.log(message)
 });
 
 ws.on('error', (error) => {
