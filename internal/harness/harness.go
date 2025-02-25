@@ -206,15 +206,12 @@ func (h *Harness) DisconnectServiceFromPeers(id int) {
 		}
 	}
 	h.connected[id] = false
-	log.Info().
-		Int("raftID", id).
-		Msg("serviceDisconnected")
+	// log.Info().
+	// 	Int("raftID", id).
+	// 	Msg("serviceDisconnected")
 }
 
 func (h *Harness) ReconnectServiceToPeers(id int) {
-	log.Info().
-		Int("raftID", id).
-		Msg("serviceReconnecting")
 	for j := 0; j < h.n; j++ {
 		if j != id && h.alive[j] {
 			if err := h.kvCluster[id].ConnectToRaftPeer(j, h.kvCluster[j].GetRaftListenAddr()); err != nil {
@@ -255,9 +252,9 @@ func (h *Harness) RestartService(id int) {
 		logger.Error("Cannot restart: service is still alive", zap.Int("service_id", id))
 		return
 	}
-	log.Info().
-		Int("raftID", id).
-		Msg("serviceReconnecting")
+	// log.Info().
+	// 	Int("raftID", id).
+	// 	Msg("serviceReconnecting")
 	peerIds := make([]int, 0)
 	for p := range h.n {
 		if p != id {

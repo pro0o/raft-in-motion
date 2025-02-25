@@ -217,7 +217,7 @@ func crashFollowerTest() {
 }
 
 func DisconnectLeaderTest() {
-	log.Info().Msg("simulatingDisconnectLeader")
+	// logger.Info("simulatingDisconnectLeader")
 	c := initClient()
 	h := NewHarness(3, c)
 	defer h.Shutdown()
@@ -245,5 +245,5 @@ func DisconnectLeaderTest() {
 	h.ReconnectServiceToPeers(lid)
 	sleepMs(200)
 
-	log.Info().Msg("disconnectLeaderTestCompleted")
+	// log.Info().Msg("disconnectLeaderTestCompleted")
 }
