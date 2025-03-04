@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from "react";
 import { WebSocketService } from "@/services/wsService";
-import { Log, LogMessageType, ServerListeningLog, PeerConnectedLog,
+import { LogMessageType } from "@/types/raftEnums";
+import { Log, ServerListeningLog, PeerConnectedLog,
   PeerDisconnectedLog, ElectionTimerLog, StateTransitionLog, VoteLog,
   ElectionWonLog, PutRequestInitiatedLog, ResponseLeaderLog,
-  PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog } from "@/types/logTypes";
+  PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog } from "@/types/raftTypes";
 
 const WS_ENDPOINT = 'ws://localhost:8081/ws';
 const LOG_FLUSH_INTERVAL = 250; 

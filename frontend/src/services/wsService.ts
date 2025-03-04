@@ -1,4 +1,4 @@
-import type { Log } from "@/types/logTypes";
+import type { Log } from "@/types/raftTypes";
 
 export class WebSocketService {
   public ws: WebSocket | null = null;
