@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useRef, useState, useCallback } from "react";
-import { WebSocketService } from "@/services/wsService";
+import React, { createContext, useContext, useRef, useState, useCallback, useMemo } from "react";
+import  { WebSocketService}  from "@/services/wsService";
 import { LogMessageType } from "@/types/raftEnums";
 import { Log, ServerListeningLog, PeerConnectedLog,
   PeerDisconnectedLog, ElectionTimerLog, StateTransitionLog, VoteLog,
   ElectionWonLog, PutRequestInitiatedLog, ResponseLeaderLog,
-  PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog } from "@/types/raftTypes";
+  PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog  } from "@/types/raftTypes";
+import { ServerLog } from "@/types/raftTypes";
 
 const WS_ENDPOINT = 'ws://localhost:8081/ws';
 const LOG_FLUSH_INTERVAL = 250; 
@@ -129,7 +130,6 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (Array.isArray(rawLogs)) {
       rawLogs.forEach((rawLog) => {
         const parsedLog = parseLog(rawLog);
-        console.log(parsedLog);
         if (parsedLog) {
           logQueueRef.current.push(parsedLog);
         }
@@ -145,8 +145,6 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startFlushing();
     }
   }, [startFlushing]);
-  
-  
 
   const resetState = useCallback(() => {
     setLogs([]);

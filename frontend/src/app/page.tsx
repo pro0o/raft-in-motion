@@ -2,6 +2,7 @@
 
 import ControlPanel from "@/components/controlPanel"
 import { LogsProvider } from "@/context/logsContext"
+import ServerInstance from "@/components/serverInstances"
 
 export default function Home() {
   return (
@@ -17,9 +18,17 @@ export default function Home() {
 
 
       <LogsProvider>
-        <div className="flex-grow overflow-y-auto w-full bg-slate-100 border border-slate-200 rounded p-4">
+        {/* <div className="flex-grow overflow-y-auto w-full bg-slate-100 border border-slate-200 rounded p-4">
               <ControlPanel />
-        </div>
+        </div> */}
+      <div className="w-full max-w-4xl mx-auto bg-zinc-900 text-white rounded-2xl overflow-hidden border-8 border-gray-200 shadow-lg">
+        {[0, 1, 2].map((id, index) => (
+          <div key={id} className="relative">
+            <ServerInstance instanceId={id} />
+            {index < 3 && <div className="absolute bottom-0 left-32 right-32 h-1 rounded-xl bg-zinc-800" />}
+          </div>
+        ))}
+      </div>
       </LogsProvider>
     </main>
   )
