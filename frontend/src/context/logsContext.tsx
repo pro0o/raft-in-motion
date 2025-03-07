@@ -5,11 +5,23 @@ import { Log, ServerListeningLog, PeerConnectedLog,
   PeerDisconnectedLog, ElectionTimerLog, StateTransitionLog, VoteLog,
   ElectionWonLog, PutRequestInitiatedLog, ResponseLeaderLog,
   PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog  } from "@/types/raftTypes";
-import { ServerLog } from "@/types/raftTypes";
 
 const WS_ENDPOINT = 'ws://localhost:8081/ws';
-const LOG_FLUSH_INTERVAL = 250; 
+const LOG_FLUSH_INTERVAL = 750; 
 
+export enum ConnectionStatus {
+  DISCONNECTED,
+  CONNECTING,
+  CONNECTED
+}
+
+interface LogsContextType {
+  connect: (action: string) => void;
+  logs: Log[];
+  clearLogs: () => void;
+  disconnect: () => void;
+  connectionStatus: ConnectionStatus; 
+}
 interface LogsContextType {
   connect: (action: string) => void;
   logs: Log[];
@@ -94,6 +106,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logQueueRef = useRef<Log[]>([]);
   const flushIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
 
   const cleanupResources = useCallback(() => {
     if (flushIntervalRef.current) {
@@ -105,6 +118,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wsServiceRef.current.ws.close();
       wsServiceRef.current = null;
     }
+    setConnectionStatus(ConnectionStatus.DISCONNECTED);
     console.log(`Total logs processed: ${logs.length}`);
   }, [logs.length]);
 
@@ -155,18 +169,25 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       flushIntervalRef.current = null;
     }
   }, []);
+  
 
   const connect = useCallback((action: string) => {
     try {
       cleanupResources();
       resetState();
       
+      setConnectionStatus(ConnectionStatus.CONNECTING);
+      
       const newWsService = new WebSocketService(WS_ENDPOINT);
       newWsService.onLogReceived = enqueueLog;
+      newWsService.onOpen = () => setConnectionStatus(ConnectionStatus.CONNECTED);
+      newWsService.onClose = () => setConnectionStatus(ConnectionStatus.DISCONNECTED);
+      
       newWsService.connect(action);
       wsServiceRef.current = newWsService;
     } catch (error) {
       console.error("Failed to establish WebSocket connection:", error);
+      setConnectionStatus(ConnectionStatus.DISCONNECTED);
       throw error;
     }
   }, [enqueueLog, resetState, cleanupResources]);
@@ -179,12 +200,13 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cleanupResources();
   }, [cleanupResources]);
 
-  const contextValue = React.useMemo(() => ({
+  const contextValue = useMemo(() => ({
     connect,
     logs,
     clearLogs,
-    disconnect, 
-  }), [connect, logs, clearLogs, disconnect]);
+    disconnect,
+    connectionStatus,
+  }), [connect, logs, clearLogs, disconnect, connectionStatus]);
 
   return <LogsContext.Provider value={contextValue}>{children}</LogsContext.Provider>;
 };

@@ -110,9 +110,9 @@ func (s *Server) Submit(cmd any) int {
 func (s *Server) DisconnectAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	log.Info().
-		Int("raftID", s.serverId).
-		Msg("disconnectionInitialized")
+	// log.Info().
+	// 	Int("raftID", s.serverId).
+	// 	Msg("disconnectionInitialized")
 
 	for id := range s.peerClients {
 		if s.peerClients[id] != nil {

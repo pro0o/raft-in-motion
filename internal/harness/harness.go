@@ -195,9 +195,9 @@ func (h *Harness) CheckGet(c *client.KVClient, key string, wantValue string) {
 }
 
 func (h *Harness) DisconnectServiceFromPeers(id int) {
-	log.Info().
-		Int("raftID", id).
-		Msg("serviceDisconnecting")
+	// log.Info().
+	// 	Int("raftID", id).
+	// 	Msg("serviceDisconnecting")
 
 	h.kvCluster[id].DisconnectFromAllRaftPeers()
 	for j := 0; j < h.n; j++ {
