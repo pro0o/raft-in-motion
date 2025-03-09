@@ -1,6 +1,7 @@
 import { Log, StateTransitionLog, PeerConnectedLog, PeerDisconnectedLog, VoteLog, ReceiveVoteLog, NodeDeadLog } from "@/types/raftTypes";
 import { LogMessageType } from "@/types/raftEnums";
 import { logTypeColors } from "@/components/styles/logStyles";
+
 export const processLogMessage = (log: Log): string => {
     switch (log.message) {
       case LogMessageType.STATE_TRANSITION:
@@ -140,3 +141,20 @@ export const getLogSpeed = (log: Log): number => {
         return 4; 
     }
   };
+
+export const tailwindColorsToRgb = {
+  "blue-600": "256, 256, 255", // Example RGB conversion for bg-blue-600
+  "emerald-500": "16, 185, 129", // Example for bg-emerald-500
+  "pink-800": "115, 29, 122", // Example for bg-pink-800
+  "green-500": "34, 197, 94", // Example for bg-green-500
+  "gray-950": "31, 41, 55", // Example for bg-gray-950
+  "gray-700": "55, 65, 81", // Example for bg-gray-700
+};
+
+export const getRgbFromGlow = (glowClass: string): string => {
+  // Remove the alpha value by splitting at "/"
+  const classParts = glowClass.split("/")[0]; // This will give us "bg-blue-600"
+  
+  const colorKey = classParts.split("-").slice(1).join("-"); // This will give us "blue-600"
+  return tailwindColorsToRgb[colorKey] || "0, 0, 0"; // Default to black if not found
+};

@@ -24,7 +24,8 @@ export function ServerHeader({ raftID, currentState, currentTerm }: ServerHeader
         <div>
           <h2 className="text-lg font-medium">
             Server Instance
-            <span className="text-md font-medium text-zinc-400"> #{raftID}</span>
+            <span className="text-m
+            d font-medium text-zinc-400"> #{raftID}</span>
           </h2>
           <p className="text-sm text-zinc-400 font-medium mt-0.5">Term: {currentTerm}</p>
         </div>

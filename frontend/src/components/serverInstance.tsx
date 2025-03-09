@@ -135,7 +135,7 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
   };
 
   return (
-    <div className="w-full py-5 px-5 space-y-6">
+    <div className="w-full py-4 px-4 space-y-6">
       <ServerHeader 
         raftID={raftID} 
         currentState={currentState} 

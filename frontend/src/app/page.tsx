@@ -1,35 +1,35 @@
 "use client"
 
-import ControlPanel from "@/components/controlPanel"
 import { LogsProvider } from "@/context/logsContext"
 import ServerInstance from "@/components/serverInstance"
 import { LogDispatcherProvider } from "@/context/logsDispatcher"
-import PixelGrid from "@/components/pixelGrid"
+import PixelGrid from "@/components/pixelGrid";
+import EventHistory from "@/components/eventHistory";
+import ControlPanel from "@/components/controlPanel";
 
 export default function Home() {
+  const instances = [0, 1, 2];
+
   return (
-    <main className="flex bg-white-900 text-white h-screen p-8">
+    <main className="flex flex-col bg-white h-screen p-14 items-center justify-center">
       <LogsProvider>
         <LogDispatcherProvider>
-          <div className="flex gap-8 w-full max-w-16xl">
-            {/* Server Instances (Left Side) */}
-            <div className="flex flex-col gap-4 w-full max-w-4xl">
-              {[0, 1, 2].map((id) => (
-                <div key={id} className="w-full bg-zinc-900 text-white rounded-2xl overflow-hidden border-8 border-zinc-300 shadow-lg">
-                  <div className="relative">
-                    <ServerInstance raftID={id} />
-                  </div>
+          <div className="flex flex-row w-full max-w-6xl gap-4 items-center justify-center">
+            <div className="w-2/5 bg-zinc-900 text-white overflow-hidden shadow-lg border-8 border-gray-200 rounded-2xl">
+              {instances.map((id) => (
+                <div key={id} className="relative">
+                  <ServerInstance raftID={id} />
                 </div>
               ))}
             </div>
+            <div className="w-2/5 flex flex-col gap-6">
+              <PixelGrid />
+              <EventHistory />
+            </div>
           </div>
         </LogDispatcherProvider>
+        {/* <ControlPanel/> */}
       </LogsProvider>
-
-            {/* PixelGrid (Right Side) */}
-            <div className="flex items-center">
-              <PixelGrid />
-            </div>
     </main>
-  )
+  );
 }

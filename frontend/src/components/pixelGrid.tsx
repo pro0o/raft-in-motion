@@ -2,12 +2,14 @@
 
 import type React from "react"
 import { useEffect, useRef } from "react"
+import { useLogVisualization } from "@/context/gridContext"
 
 const PixelGrid: React.FC = () => {
+  const { color, activityText } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pixelSize = 4
-  const gap = 4
-  const gridSize = 100 // 400 / (pixelSize + gap)
+  const gap = 8
+  const gridSize = 80
   const canvasSize = 400
 
   useEffect(() => {
@@ -21,8 +23,8 @@ const PixelGrid: React.FC = () => {
     let frameCount = 0
 
     const getCircleRadius = (frame: number) => {
-      const minRadius = 80
-      const maxRadius = 200
+      const minRadius = 60
+      const maxRadius = 150
       const amplitude = (maxRadius - minRadius) / 2
       const centerRadius = minRadius + amplitude
       return centerRadius + amplitude * Math.sin(frame * 0.01)
@@ -44,8 +46,7 @@ const PixelGrid: React.FC = () => {
           const pixelCenterX = x * (pixelSize + gap) + pixelSize / 2
           const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
 
-          // Draw all pixels, regardless of whether they're inside the circle
-          ctx.fillStyle = `rgba(74, 222, 128, ${pixelOpacities[index]})`
+          ctx.fillStyle = `rgba(${color}, ${pixelOpacities[index]})`
           ctx.fillRect(x * (pixelSize + gap), y * (pixelSize + gap), pixelSize, pixelSize)
         }
       }
@@ -61,9 +62,9 @@ const PixelGrid: React.FC = () => {
         const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
 
         if (isInsideCircle(pixelCenterX, pixelCenterY, radius)) {
-          pixelOpacities[index] = Math.random() * 0.6 + 0.2 // Random opacity between 0.2 and 0.8
+          pixelOpacities[index] = Math.random() * 0.6 + 0.2
         } else {
-          pixelOpacities[index] = 0 // Set opacity to 0 for pixels outside the circle
+          pixelOpacities[index] = 0
         }
       }
     }
@@ -72,7 +73,6 @@ const PixelGrid: React.FC = () => {
       frameCount++
       const radius = getCircleRadius(frameCount)
 
-      // Update pixels every 5th frame
       if (frameCount % 5 === 0) {
         updatePixels(radius)
       }
@@ -84,14 +84,13 @@ const PixelGrid: React.FC = () => {
     animate()
 
     return () => {
-      // Clean up animation frame on component unmount
       cancelAnimationFrame(animate as unknown as number)
     }
-  }, [])
+  }, [color])
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-white">
-      <div className="border-8 border-zinc-200 rounded-2xl p-8">
+    <div className="flex flex-col items-center justify-center bg-white">
+      <div className="p-2 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-lg">
         <canvas
           ref={canvasRef}
           width={canvasSize}
@@ -99,10 +98,17 @@ const PixelGrid: React.FC = () => {
           aria-label="Pixel grid animation with gradual fade and slow updates"
           role="img"
         />
+        {activityText && (
+          <div
+            className="mt-1 text-xl font-mono"
+            style={{ color: `rgb(${color})`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          >
+            {activityText}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 export default PixelGrid
-
