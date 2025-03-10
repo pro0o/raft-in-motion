@@ -4,6 +4,7 @@ import { useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown } from "lucide-react"
 import SimulateButton from "./simulateButton"
+import { useLogs } from "@/context/logsContext"
 
 interface Action {
   id: string
@@ -58,6 +59,10 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
+  const { connect } = useLogs()
+  const handleSimulateClick = () => {
+    connect("put")
+  }
 
   const handleSelectAction = (action: Action) => {
     setSelectedAction(action)
@@ -70,7 +75,7 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
         <div className="w-full shadow-lg border-8 border-gray-200 rounded-2xl z-10 backdrop-blur-sm" ref={dropdownRef}>
           <div className="relative flex items-center justify-between px-4 py-6 h-16 text-lg rounded-xl bg-zinc-900 backdrop-blur-md hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/30">
             <div ref={triggerRef} className="flex items-center gap-3 w-full" onClick={() => setIsOpen(!isOpen)}>
-              <ChevronDown className={`h-8 w-8 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`h-6 w-6 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
               {selectedAction ? (
                 <span className="text-zinc-100 text-lg font-medium">{selectedAction.label}</span>
               ) : (
@@ -79,7 +84,7 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             </div>
 
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              <SimulateButton />
+            <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/>
             </div>
           </div>
 {/* Dropdown menu - Fixed positioning */}

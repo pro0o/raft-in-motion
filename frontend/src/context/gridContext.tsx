@@ -11,7 +11,7 @@ export interface LogVisualizationContextType {
 
 export const useLogVisualization = (): LogVisualizationContextType => {
   const [color, setColor] = useState<string | null>("255, 255, 255")
-  const [activity, setActivity] = useState<string | null>("Nothing ")
+  const [activity, setActivity] = useState<string | null>("Nothing much happenning")
   const { logs, connectionStatus } = useLogs()
 
   useEffect(() => {

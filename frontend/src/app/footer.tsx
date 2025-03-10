@@ -1,12 +1,13 @@
 import Link from "next/link"
 
 export default function Footer() {
-  const links = [
-    { href: "https://github.com", label: "github" },
-    { href: "https://twitter.com", label: "twitter" },
-    { href: "/profile", label: "profile" }
+    const links = [
+        { href: "/", label: "/home"},
+        { href: "https://github.com", label: "github" },
+        { href: "https://twitter.com", label: "twitter" },
+        { href: "https://linkedin.com", label: "linkedin" },
   ]
-
+  
   return (
     <footer className="w-full py-4">
       <div className="container mx-auto px-4">
