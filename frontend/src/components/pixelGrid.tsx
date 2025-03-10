@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 import { useLogVisualization } from "@/context/gridContext"
 
 const PixelGrid: React.FC = () => {
-  const { color, activityText } = useLogVisualization()
+  const { color, activity } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pixelSize = 4
   const gap = 8
@@ -15,7 +15,7 @@ const PixelGrid: React.FC = () => {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-
+    
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
@@ -98,12 +98,12 @@ const PixelGrid: React.FC = () => {
           aria-label="Pixel grid animation with gradual fade and slow updates"
           role="img"
         />
-        {activityText && (
+        {activity && (
           <div
-            className="mt-1 text-xl font-mono"
+            className="text-md font-mono"
             style={{ color: `rgb(${color})`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
           >
-            {activityText}
+            {activity}
           </div>
         )}
       </div>

@@ -1,85 +1,34 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
-import { useLogs } from "@/context/logsContext";
-import { ConnectionStatus } from "@/context/logsContext";
-import { processLogMessage, getLogColor } from "@/lib/logUtils";
-import { Log } from "@/types/raftTypes";
-import { getRgbFromGlow } from "@/lib/logUtils";
+"use client"
 
-interface LogVisualizationContextType {
-  color: string;
-  activityText: string;
+import { useState, useEffect } from "react"
+import { useLogs, ConnectionStatus } from "@/context/logsContext"
+import { processActivity } from "@/lib/logUtils"
+
+export interface LogVisualizationContextType {
+  color: string | null
+  activity: string | null
 }
 
-const LogVisualizationContext = createContext<LogVisualizationContextType>({
-  color: "256, 256, 256",
-  activityText: "Nothing Happening",
-});
+export const useLogVisualization = (): LogVisualizationContextType => {
+  const [color, setColor] = useState<string | null>("255, 255, 255")
+  const [activity, setActivity] = useState<string | null>("Nothing ")
+  const { logs, connectionStatus } = useLogs()
 
-export const useLogVisualization = () => useContext(LogVisualizationContext);
+  useEffect(() => {
+    if (!logs.length || connectionStatus !== ConnectionStatus.CONNECTED) return
 
-interface LogVisualizationProviderProps {
-  children: React.ReactNode;
+    if (logs.length % 15 === 0) {
+      const latestLog = logs[logs.length - 1]
+      if (!latestLog) return
+
+      const { activityText, color } = processActivity(latestLog)
+      setActivity(activityText)
+      setColor(color)
+    }
+  }, [logs, connectionStatus])
+
+  return {
+    color,
+    activity
+  }
 }
-
-const LogChecker: React.FC<LogVisualizationProviderProps> = ({ children }) => {
-  const { logs, connectionStatus } = useLogs();
-  const [color, setColor] = useState<string>("256, 256, 256");
-  const [activityText, setActivityText] = useState<string>("Nothing Happening");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  console.log("state called!")
-  const updateVisualization = (log: Log) => {
-    const logColor = getLogColor(log);
-    const glowRgb = getRgbFromGlow(logColor.glow);
-    setColor(glowRgb);
-    setActivityText(processLogMessage(log));
-  };
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (connectionStatus !== ConnectionStatus.CONNECTED) {
-      setColor("256, 256, 256");
-      setActivityText("Nothing Happening");
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
-    if (logs.length > 0) {
-      updateVisualization(logs[logs.length - 1]);
-    }
-
-    if (!intervalRef.current) {
-      intervalRef.current = setInterval(() => {
-        if (logs.length > 0) {
-          const latestLog = logs[logs.length - 1];
-          updateVisualization(latestLog);
-        }
-      }, 5000);
-    }
-
-  }, [connectionStatus, logs]);
-
-  useEffect(() => {
-    console.log("color:", color);
-    console.log("activity:", activityText);
-  }, [color, activityText]);
-
-  return (
-    <LogVisualizationContext.Provider value={{ color, activityText }}>
-      {children}
-    </LogVisualizationContext.Provider>
-  );
-};
-
-export default LogChecker;
