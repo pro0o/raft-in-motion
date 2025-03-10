@@ -141,20 +141,42 @@ export const getLogSpeed = (log: Log): number => {
         return 4; 
     }
   };
-
-export const tailwindColorsToRgb = {
-  "blue-600": "256, 256, 255", // Example RGB conversion for bg-blue-600
-  "emerald-500": "16, 185, 129", // Example for bg-emerald-500
-  "pink-800": "115, 29, 122", // Example for bg-pink-800
-  "green-500": "34, 197, 94", // Example for bg-green-500
-  "gray-950": "31, 41, 55", // Example for bg-gray-950
-  "gray-700": "55, 65, 81", // Example for bg-gray-700
-};
-
-export const getRgbFromGlow = (glowClass: string): string => {
-  // Remove the alpha value by splitting at "/"
-  const classParts = glowClass.split("/")[0]; // This will give us "bg-blue-600"
   
-  const colorKey = classParts.split("-").slice(1).join("-"); // This will give us "blue-600"
-  return tailwindColorsToRgb[colorKey] || "0, 0, 0"; // Default to black if not found
+  export const processActivity = (log: Log): { activityText: string; color: string } => {
+    switch (log.message) {
+        case LogMessageType.ELECTION_TIMER_STARTED:
+        case LogMessageType.ELECTION_TIMEOUT:
+        case LogMessageType.ELECTION_WON:
+        case LogMessageType.ELECTION_TIMER_STOPPED_I:
+        case LogMessageType.ELECTION_TIMER_STOPPED_II:
+        case LogMessageType.REQUEST_VOTE:
+        case LogMessageType.RECEIVE_VOTE:
+        case LogMessageType.VOTE_FAILURE:
+            return { activityText: "General election happening", color: "16, 185, 129" }; // Emerald (Green)
+
+        case LogMessageType.PEER_CONNECTED:
+        case LogMessageType.PEER_DISCONNECTED:
+            return { activityText: "Peer connection activity occurring", color: "30,144,255" }; // Lime
+
+        case LogMessageType.SHUTDOWN_INITIALIZED:
+        case LogMessageType.SHUTDOWN_COMPLETE:
+        case LogMessageType.SERVICE_DISCONNECTING:
+        case LogMessageType.SERVICE_RECONNECTED:
+        case LogMessageType.DISCONNECTION_INITIALIZED:
+        case LogMessageType.DISCONNECTION_COMPLETE:
+            return { activityText: "Service connection status changing", color: "125, 211, 252" }; // Light Blue
+
+        case LogMessageType.STATE_TRANSITION:
+            return { activityText: "System state is transitioning", color: "209, 213, 219" }; // Light Gray
+
+        case LogMessageType.NODE_DEAD:
+            return { activityText: "A node has gone down", color: "209, 213, 219" }; // Light Gray
+
+        case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
+        case LogMessageType.DISCONNECTING_LEADER:
+            return { activityText: "Leader node reconnection activity happening", color: "209, 213, 219" }; // Light Gray
+
+        default:
+            return { activityText: "System Idle for now...", color: "209, 213, 219" }; // Light Gray
+    }
 };

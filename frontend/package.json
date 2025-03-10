@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@next/font": "^14.2.15",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.1",
     "@shadcn/ui": "^0.0.4",
+    "@svgr/webpack": "^8.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
@@ -38,7 +40,6 @@
     "typescript": "^5"
   },
   "engines": {
-  "node": ">=18.18.0"
-}
-
+    "node": ">=18.18.0"
+  }
 }

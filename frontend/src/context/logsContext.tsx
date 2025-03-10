@@ -139,7 +139,6 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, LOG_FLUSH_INTERVAL);
   }, []);
 
-  // enqueue
   const enqueueLog = useCallback((rawLogs: any) => {
     if (Array.isArray(rawLogs)) {
       rawLogs.forEach((rawLog) => {
