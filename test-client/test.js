@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const ws = new WebSocket('ws://localhost:8081/ws');
+const ws = new WebSocket('ws://localhost:8081/ws?simulate=6');
 
 const messageQueue = [];
 

@@ -6,8 +6,8 @@ import { Log, ServerListeningLog, PeerConnectedLog,
   ElectionWonLog, PutRequestInitiatedLog, ResponseLeaderLog,
   PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog  } from "@/types/raftTypes";
 
-const WS_ENDPOINT = 'ws://localhost:8081/ws';
-const LOG_FLUSH_INTERVAL = 750; 
+const WS_ENDPOINT = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8081/ws';
+const LOG_FLUSH_INTERVAL = 500; 
 
 export enum ConnectionStatus {
   DISCONNECTED,
@@ -21,12 +21,6 @@ interface LogsContextType {
   clearLogs: () => void;
   disconnect: () => void;
   connectionStatus: ConnectionStatus; 
-}
-interface LogsContextType {
-  connect: (action: string) => void;
-  logs: Log[];
-  clearLogs: () => void;
-  disconnect: () => void;
 }
 
 const parseLog = (rawLog: any): Log | null => {
@@ -176,6 +170,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetState();
       
       setConnectionStatus(ConnectionStatus.CONNECTING);
+      console.log("the ws endpoint is:", WS_ENDPOINT)
       
       const newWsService = new WebSocketService(WS_ENDPOINT);
       newWsService.onLogReceived = enqueueLog;

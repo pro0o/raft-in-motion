@@ -17,9 +17,9 @@ const allActions = [
   { id: "1", label: "SetupHarness", end: "Init Test Env" },
   { id: "2", label: "RequestBeforeConsensus", end: "Pre-Consensus Request" },
   { id: "3", label: "PutGetSingleClient", end: "Put/Get Verification" },
-  { id: "4", label: "ConcurrentRequests", end: "Concurrent Ops Test" },
-  { id: "5", label: "CrashFollowerTest", end: "Follower Crash Test" },
-  { id: "6", label: "DisconnectLeaderTest", end: "Leader Disconnect Test" },
+  { id: "4", label: "ConcurrentRequests", end: "Concurrent Ops" },
+  { id: "5", label: "CrashFollower", end: "Crash Follower" },
+  { id: "6", label: "DisconnectLeader", end: "Disconnect Leader" },
 ];
 
 function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
@@ -31,7 +31,9 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
   const triggerRef = useRef<HTMLDivElement>(null)
   const { connect } = useLogs()
   const handleSimulateClick = () => {
-    connect("put")
+    if (selectedAction) {
+      connect(selectedAction.id);
+    }
   }
 
   const handleSelectAction = (action: Action) => {

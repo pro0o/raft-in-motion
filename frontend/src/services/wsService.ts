@@ -14,11 +14,11 @@ export class WebSocketService {
       this.ws = null;
     }
 
-    const finalUrl = `${this.baseUrl}`;
+    const finalUrl = `${this.baseUrl}?simulate=${action}`;
     this.ws = new WebSocket(finalUrl);
 
+    console.log(`Connected: ${finalUrl}`);
     this.ws.onopen = () => {
-      console.log(`Connected: ${this.baseUrl}`);
       if (this.onOpen) {
         this.onOpen();
       }

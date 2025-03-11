@@ -6,7 +6,7 @@ import { useLogVisualization } from "@/context/gridContext"
 const PixelGrid: React.FC = () => {
   const { color, activity } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number>(0)
   
   const pixelSize = 6
   const gap = 8

@@ -14,13 +14,13 @@ export default function SimulateButton({ onClick, text }: SimulateButtonProps) {
           <div
             className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-lime-200 rounded-lg blur-lg opacity-70 
                       group-hover:opacity-90 transition duration-300 
-                      animate-[pulse_3s_ease-in-out_infinite] group-hover:animate-[spin_4s_linear_infinite]"
+                      animate-[pulse_4s_ease-in-out_infinite] group-hover:animate-[spin_4s_linear_infinite]"
           ></div>
 
           <div
             className="absolute -inset-1 bg-gradient-to-tr from-blue-400 via-blue-500 to-sky-400 rounded-lg blur-lg opacity-70 
                       group-hover:opacity-90 transition duration-300 
-                      animate-[pulse_4s_ease-in-out_infinite] group-hover:animate-[spin_3s_linear_infinite]"
+                      animate-[pulse_5s_ease-in-out_infinite] group-hover:animate-[spin_3s_linear_infinite]"
             style={{ animationDirection: "reverse" }}
           ></div>
 

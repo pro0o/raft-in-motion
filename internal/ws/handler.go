@@ -3,6 +3,7 @@ package ws
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/pro0o/raft-in-motion/internal/client"
 	"github.com/pro0o/raft-in-motion/internal/harness"
@@ -17,6 +18,18 @@ var upgrader = websocket.Upgrader{
 }
 
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	simulate := r.URL.Query().Get("simulate")
+	if simulate == "" {
+		http.Error(w, "Missing simulate parameter", http.StatusBadRequest)
+		return
+	}
+
+	simulateInt, err := strconv.Atoi(simulate)
+	if err != nil || simulateInt != 6 {
+		http.Error(w, "Invalid simulate parameter. Must be between 6", http.StatusBadRequest)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logger.Error("Upgrade error", zap.Error(err))
@@ -25,7 +38,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	logger.Init()
 	defer logger.Sync()
 
-	memLogger := logger.NewMemoryLogger(150)
+	memLogger := logger.NewMemoryLogger(100)
 	logger.SetupLogger(memLogger)
 
 	c := &client.Client{
@@ -36,9 +49,15 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Logger: memLogger,
 	}
 
-	logger.Info("Running Disconnect Leader Test")
+	switch simulateInt {
+	case 6:
+		logger.Info("Running Disconnect Leader Test")
+		harness.DisconnectLeaderTest()
+	default:
+		http.Error(w, "Invalid simulation option", http.StatusBadRequest)
+		return
+	}
 
-	harness.DisconnectLeaderTest()
 	client.LogClientConnection(true)
 	go client.ReadLoop(c)
 	go client.WriteLoop(c)
