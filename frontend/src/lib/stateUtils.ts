@@ -8,6 +8,10 @@ export function getStateName(state: RaftState): string {
       return "Candidate"
     case RaftState.LEADER:
       return "Leader"
+    case RaftState.DEAD:
+      return "Dead"
+    case RaftState.DISCONNECTED:
+      return "Disconnected"
     default:
       return "Unknown"
   }
@@ -21,6 +25,10 @@ export function getStateColor(state: RaftState): string {
       return "text-yellow-400"
     case RaftState.LEADER:
       return "text-emerald-400"
+    case RaftState.DEAD:
+      return "text-zinc-400"
+    case RaftState.DISCONNECTED:
+      return "text-pink-500"
     default:
       return "text-gray-400"
   }
@@ -34,21 +42,11 @@ export function getStateBgColor(state: RaftState): string {
       return "bg-yellow-400"
     case RaftState.LEADER:
       return "bg-green-500"
+    case RaftState.DEAD:
+      return "bg-gray-500"
+    case RaftState.DISCONNECTED:
+      return "bg-pink-500/90"
     default:
       return "bg-gray-400"
   }
 }
-
-export function getStateBorderColor(state: RaftState): string {
-  switch (state) {
-    case RaftState.FOLLOWER:
-      return "border-blue-600/30"
-    case RaftState.CANDIDATE:
-      return "border-amber-600/30"
-    case RaftState.LEADER:
-      return "border-emerald-600/30"
-    default:
-      return "border-gray-600/30"
-  }
-}
-

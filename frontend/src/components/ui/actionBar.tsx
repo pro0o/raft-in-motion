@@ -9,48 +9,18 @@ import { useLogs } from "@/context/logsContext"
 interface Action {
   id: string
   label: string
-  description?: string
-  short?: string
   end?: string
+
 }
 
 const allActions = [
-  {
-    id: "1",
-    label: "Book tickets",
-    description: "Operator",
-    short: "⌘K",
-    end: "Agent",
-  },
-  {
-    id: "2",
-    label: "Summarize",
-    description: "gpt-4o",
-    short: "⌘cmd+p",
-    end: "Command",
-  },
-  {
-    id: "3",
-    label: "Screen Studio",
-    description: "gpt-4o",
-    short: "",
-    end: "Application",
-  },
-  {
-    id: "4",
-    label: "Talk to Jarvis",
-    description: "gpt-4o voice",
-    short: "",
-    end: "Active",
-  },
-  {
-    id: "5",
-    label: "Translate",
-    description: "gpt-4o",
-    short: "",
-    end: "Command",
-  },
-]
+  { id: "1", label: "SetupHarness", end: "Init Test Env" },
+  { id: "2", label: "RequestBeforeConsensus", end: "Pre-Consensus Request" },
+  { id: "3", label: "PutGetSingleClient", end: "Put/Get Verification" },
+  { id: "4", label: "ConcurrentRequests", end: "Concurrent Ops Test" },
+  { id: "5", label: "CrashFollowerTest", end: "Follower Crash Test" },
+  { id: "6", label: "DisconnectLeaderTest", end: "Leader Disconnect Test" },
+];
 
 function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -79,7 +49,7 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
               {selectedAction ? (
                 <span className="text-zinc-100 text-lg font-medium">{selectedAction.label}</span>
               ) : (
-                <span className="text-zinc-400 text-lg">Select an action</span>
+                <span className="text-zinc-400 text-lg">Select a simulation to try</span>
               )}
             </div>
 
@@ -87,7 +57,6 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/>
             </div>
           </div>
-{/* Dropdown menu - Fixed positioning */}
 <AnimatePresence>
   {isOpen && (
     <motion.div
@@ -108,15 +77,10 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             className="px-6 py-3 flex items-center justify-between hover:bg-zinc-700/70 cursor-pointer transition-colors"
             onClick={() => handleSelectAction(action)}
           >
-            <span className="text-lg font-medium text-zinc-100">{action.label}</span>
+            <span className="text-md font-medium text-zinc-100">{action.label}</span>
             <div className="flex items-center gap-4 flex-shrink-0">
-              {action.short && (
-                <span className="text-base text-zinc-300 bg-zinc-700/80 px-2 py-1 rounded-md">
-                  {action.short}
-                </span>
-              )}
               {action.end && (
-                <span className="text-base text-zinc-400 min-w-16 text-right">{action.end}</span>
+                <span className="text-sm text-zinc-400 min-w-16 text-right">{action.end}</span>
               )}
             </div>
           </motion.li>

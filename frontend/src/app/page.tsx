@@ -9,8 +9,8 @@ const HomePage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter() 
 
-  const pixelSize = 4
-  const gap = 8
+  const pixelSize = 8
+  const gap = 4
   const gridSize = 80
   const canvasSize = 400
   const color = "220, 220, 220" 
@@ -26,8 +26,24 @@ const HomePage: React.FC = () => {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const pixelOpacities = new Array(gridSize * gridSize).fill(0)
+    // Use a sparse array instead of filling the entire grid
+    const activePixels = new Map()
     let frameCount = 0
+    let animationFrameId: number
+
+    // Pre-calculate pixel positions to avoid recalculating in every frame
+    const pixelPositions = []
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        pixelPositions.push({
+          x: x * (pixelSize + gap),
+          y: y * (pixelSize + gap),
+          centerX: x * (pixelSize + gap) + pixelSize / 2,
+          centerY: y * (pixelSize + gap) + pixelSize / 2,
+          index: y * gridSize + x
+        })
+      }
+    }
 
     const getCircleRadius = (frame: number) => {
       const minRadius = 60
@@ -45,59 +61,61 @@ const HomePage: React.FC = () => {
       return dx * dx + dy * dy <= radius * radius
     }
 
-    const drawPixels = (radius: number) => {
+    const updateAndDrawPixels = (radius: number) => {
+      // Clear only the necessary parts instead of the entire canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let y = 0; y < gridSize; y++) {
-        for (let x = 0; x < gridSize; x++) {
-          const index = y * gridSize + x
-          const pixelCenterX = x * (pixelSize + gap) + pixelSize / 2
-          const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
-
-          ctx.fillStyle = `rgba(${color}, ${pixelOpacities[index]})`
-          ctx.fillRect(x * (pixelSize + gap), y * (pixelSize + gap), pixelSize, pixelSize)
-        }
+      
+      // Calculate how many pixels to update - use a lower percentage
+      const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.05)
+      
+      // Randomly select pixels to update
+      const randomIndices = new Set()
+      while (randomIndices.size < pixelsToUpdate) {
+        randomIndices.add(Math.floor(Math.random() * pixelPositions.length))
       }
-    }
-
-    const updatePixels = (radius: number) => {
-      const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.2)
-      for (let i = 0; i < pixelsToUpdate; i++) {
-        const x = Math.floor(Math.random() * gridSize)
-        const y = Math.floor(Math.random() * gridSize)
-        const index = y * gridSize + x
-        const pixelCenterX = x * (pixelSize + gap) + pixelSize / 2
-        const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
-
-        if (isInsideCircle(pixelCenterX, pixelCenterY, radius)) {
-          pixelOpacities[index] = Math.random() * 0.6 + 0.2
+      
+      // Process only the selected pixels
+      randomIndices.forEach(i => {
+        const pixel = pixelPositions[i]
+        
+        if (isInsideCircle(pixel.centerX, pixel.centerY, radius)) {
+          const opacity = Math.random() * 0.6 + 0.2
+          activePixels.set(pixel.index, opacity)
         } else {
-          pixelOpacities[index] = 0
+          activePixels.delete(pixel.index)
         }
-      }
+      })
+      
+      // Draw only active pixels
+      activePixels.forEach((opacity, index) => {
+        const pixel = pixelPositions[index]
+        ctx.fillStyle = `rgba(${color}, ${opacity})`
+        ctx.fillRect(pixel.x, pixel.y, pixelSize, pixelSize)
+      })
     }
 
     const animate = () => {
       frameCount++
       const radius = getCircleRadius(frameCount)
 
-      if (frameCount % 5 === 0) {
-        updatePixels(radius)
+      // Only update pixels every few frames
+      if (frameCount % 8 === 0) {
+        updateAndDrawPixels(radius)
       }
 
-      drawPixels(radius)
-      requestAnimationFrame(animate)
+      animationFrameId = requestAnimationFrame(animate)
     }
 
     animate()
 
     return () => {
-      cancelAnimationFrame(animate as unknown as number)
+      cancelAnimationFrame(animationFrameId)
     }
   }, [])
   
   return (
     <div className="flex items-center justify-center bg-white min-h-screen">
-      <div className="w-2/3 mx-auto bg-zinc-900 overflow-hidden shadow-lg border-8 border-gray-200 rounded-2xl">
+      <div className="w-2/3 mx-auto bg-zinc-900 overflow-hidden shadow-lg border-8 border-gray-200 rounded-3xl">
         <div className="flex flex-col items-center p-8">
           <canvas
             ref={canvasRef}
@@ -109,7 +127,7 @@ const HomePage: React.FC = () => {
           />
           
           <header className="pb-6 lowercase text-md font-medium text-zinc-200 opacity-100">
-            <img src="/assets/raft-in-motion.svg" alt="Raft-in-motion" className="h-6 invert" />
+            <img src="/assets/raft-in-motion.svg" alt="Raft-in-motion" className="h-8 invert" />
           </header>
           
           <div className="text-zinc-400 font-mono text-md max-w-xl mb-8 leading-relaxed text-center">

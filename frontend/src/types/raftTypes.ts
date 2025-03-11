@@ -46,7 +46,6 @@ export interface StateTransitionLog extends ServerLog {
   message: LogMessageType.STATE_TRANSITION;
   oldState: RaftState;
   newState: RaftState;
-  term: number;
 }
 
 export interface VoteLog extends ServerLog {

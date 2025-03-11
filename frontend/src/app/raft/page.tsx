@@ -16,7 +16,7 @@ export default function RaftPage() {
       <LogsProvider>
         <LogDispatcherProvider>
           <div className="flex flex-row w-full max-w-6xl gap-4 items-center justify-center">
-            <div className="w-2/5 bg-zinc-900 text-white overflow-hidden shadow-lg border-8 border-gray-200 rounded-2xl">
+            <div className="w-2/5 bg-zinc-900 text-white overflow-hidden shadow-lg border-8 border-gray-200 rounded-3xl">
               {instances.map((id) => (
                 <div key={id} className="relative">
                   <ServerInstance raftID={id} />

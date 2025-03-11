@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useEffect, useRef } from "react"
 import { useLogVisualization } from "@/context/gridContext"
@@ -7,20 +6,37 @@ import { useLogVisualization } from "@/context/gridContext"
 const PixelGrid: React.FC = () => {
   const { color, activity } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pixelSize = 4
+  const animationRef = useRef<number>()
+  
+  const pixelSize = 6
   const gap = 8
   const gridSize = 80
   const canvasSize = 400
-
+  
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-
-    const pixelOpacities = new Array(gridSize * gridSize).fill(0)
+    
+    // Use a Map to only store active pixels
+    const activePixels = new Map()
     let frameCount = 0
+    
+    // Pre-calculate pixel positions
+    const pixelPositions = []
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        pixelPositions.push({
+          x: x * (pixelSize + gap),
+          y: y * (pixelSize + gap),
+          centerX: x * (pixelSize + gap) + pixelSize / 2,
+          centerY: y * (pixelSize + gap) + pixelSize / 2,
+          index: y * gridSize + x
+        })
+      }
+    }
 
     const getCircleRadius = (frame: number) => {
       const minRadius = 60
@@ -37,57 +53,66 @@ const PixelGrid: React.FC = () => {
       const dy = y - centerY
       return dx * dx + dy * dy <= radius * radius
     }
-
-    const drawPixels = (radius: number) => {
+    
+    const updateAndDrawPixels = () => {
+      // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let y = 0; y < gridSize; y++) {
-        for (let x = 0; x < gridSize; x++) {
-          const index = y * gridSize + x
-          const pixelCenterX = x * (pixelSize + gap) + pixelSize / 2
-          const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
-
-          ctx.fillStyle = `rgba(${color}, ${pixelOpacities[index]})`
-          ctx.fillRect(x * (pixelSize + gap), y * (pixelSize + gap), pixelSize, pixelSize)
-        }
+      
+      // Get current circle radius
+      const radius = getCircleRadius(frameCount)
+      
+      // Update only a subset of pixels (5% instead of 20%)
+      const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.05)
+      const randomIndices = new Set()
+      
+      while (randomIndices.size < pixelsToUpdate) {
+        randomIndices.add(Math.floor(Math.random() * pixelPositions.length))
       }
-    }
-
-    const updatePixels = (radius: number) => {
-      const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.2)
-      for (let i = 0; i < pixelsToUpdate; i++) {
-        const x = Math.floor(Math.random() * gridSize)
-        const y = Math.floor(Math.random() * gridSize)
-        const index = y * gridSize + x
-        const pixelCenterX = x * (pixelSize + gap) + pixelSize / 2
-        const pixelCenterY = y * (pixelSize + gap) + pixelSize / 2
-
-        if (isInsideCircle(pixelCenterX, pixelCenterY, radius)) {
-          pixelOpacities[index] = Math.random() * 0.6 + 0.2
+      
+      // Process selected pixels
+      randomIndices.forEach(i => {
+        const pixel = pixelPositions[i]
+        
+        if (isInsideCircle(pixel.centerX, pixel.centerY, radius)) {
+          activePixels.set(pixel.index, Math.random() * 0.6 + 0.2)
         } else {
-          pixelOpacities[index] = 0
+          activePixels.delete(pixel.index)
         }
-      }
+      })
+      
+      // Draw only active pixels
+      ctx.fillStyle = `rgba(${color}, 1)`
+      activePixels.forEach((opacity, index) => {
+        const pixel = pixelPositions[index]
+        // Set global alpha instead of creating a new fill style for each pixel
+        ctx.globalAlpha = opacity
+        ctx.fillRect(pixel.x, pixel.y, pixelSize, pixelSize)
+      })
+      // Reset global alpha for future operations
+      ctx.globalAlpha = 1.0
     }
 
     const animate = () => {
       frameCount++
-      const radius = getCircleRadius(frameCount)
-
-      if (frameCount % 5 === 0) {
-        updatePixels(radius)
+      
+      // Reduce update frequency - only update every 8 frames
+      if (frameCount % 8 === 0) {
+        updateAndDrawPixels()
       }
-
-      drawPixels(radius)
-      requestAnimationFrame(animate)
+      
+      animationRef.current = requestAnimationFrame(animate)
     }
 
     animate()
 
+    // Cleanup function
     return () => {
-      cancelAnimationFrame(animate as unknown as number)
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
     }
-  }, [color])
-
+  }, [color]) // Only re-initialize when color changes
+  
   return (
     <div className="flex flex-col items-center justify-center bg-white">
       <div className="p-2 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-lg">
@@ -100,7 +125,7 @@ const PixelGrid: React.FC = () => {
         />
         {activity && (
           <div
-            className="text-md font-mono"
+            className="text-md font-md font-mono"
             style={{ color: `rgb(${color})`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
           >
             {activity}

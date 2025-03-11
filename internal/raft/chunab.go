@@ -74,7 +74,6 @@ func (rf *Raft) startElection() {
 	rf.votedFor = rf.id
 	log.Info().
 		Int("raftID", rf.id).
-		Int("term", rf.currentTerm).
 		Str("oldState", Follower.String()).
 		Str("newState", rf.state.String()).
 		Msg("stateTransition")

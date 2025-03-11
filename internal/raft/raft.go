@@ -122,8 +122,9 @@ func (rf *Raft) Kill() {
 	}
 	log.Info().
 		Int("raftID", rf.id).
-		Int("term", rf.currentTerm).
-		Msg("nodeDead")
+		Str("oldState", rf.state.String()).
+		Str("newState", Dead.String()).
+		Msg("stateTransition")
 
 	rf.state = Dead
 
@@ -179,7 +180,6 @@ func Make(
 func (rf *Raft) becomeFollower(term int) {
 	log.Info().
 		Int("raftID", rf.id).
-		Int("term", term).
 		Str("oldState", rf.state.String()).
 		Str("newState", Follower.String()).
 		Msg("stateTransition")
@@ -200,7 +200,6 @@ func (rf *Raft) startLeader() {
 	}
 	log.Info().
 		Int("raftID", rf.id).
-		Int("term", rf.currentTerm).
 		Str("oldState", Candidate.String()).
 		Str("newState", rf.state.String()).
 		Msg("stateTransition")

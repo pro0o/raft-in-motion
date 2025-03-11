@@ -2,6 +2,9 @@ export enum RaftState {
     FOLLOWER = 'Follower',
     CANDIDATE = 'Candidate',
     LEADER = 'Leader',
+    DEAD = 'Dead',
+    DISCONNECTED = 'Disconnected',
+
 }
   
 export enum LogMessageType {
