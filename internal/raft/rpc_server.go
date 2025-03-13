@@ -126,9 +126,9 @@ func (s *Server) DisconnectAll() {
 }
 
 func (s *Server) Shutdown() {
-	log.Info().
-		Int("raftID", s.serverId).
-		Msg("shutdownInitialized")
+	// log.Info().
+	// 	Int("raftID", s.serverId).
+	// 	Msg("shutdownInitialized")
 	s.rf.Kill()
 
 	close(s.quit)

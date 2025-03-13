@@ -124,6 +124,9 @@ func WriteLoop(c *Client) {
 				continue
 			}
 
+			logSize := len(logMessageJSON)
+			logger.Info("Sending log batch", zap.Int("size_bytes", logSize))
+
 			c.mu.Lock()
 			err = c.Conn.WriteMessage(websocket.TextMessage, logMessageJSON)
 			c.mu.Unlock()

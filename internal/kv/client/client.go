@@ -42,11 +42,11 @@ func (c *KVClient) Put(ctx context.Context, key string, value string) (string, b
 	}
 	var putResp types.PutResponse
 
-	log.Info().
-		Int32("clientID", c.clientID).
-		Str("key", key).
-		Str("value", value).
-		Msg("putRequestInitiated")
+	// log.Info().
+	// 	Int32("clientID", c.clientID).
+	// 	Str("key", key).
+	// 	Str("value", value).
+	// 	Msg("putRequestInitiated")
 
 	err := c.send(ctx, "put", putReq, &putResp)
 
@@ -73,10 +73,10 @@ func (c *KVClient) Get(ctx context.Context, key string) (string, bool, error) {
 	}
 	var getResp types.GetResponse
 
-	log.Info().
-		Int32("clientID", c.clientID).
-		Str("key", key).
-		Msg("etRequestInitiated")
+	// log.Info().
+	// 	Int32("clientID", c.clientID).
+	// 	Str("key", key).
+	// 	Msg("getRequestInitiated")
 
 	err := c.send(ctx, "get", getReq, &getResp)
 

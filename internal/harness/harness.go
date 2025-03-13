@@ -233,9 +233,9 @@ func (h *Harness) ReconnectServiceToPeers(id int) {
 }
 
 func (h *Harness) CrashService(id int) {
-	log.Info().
-		Int("raftID", id).
-		Msg("serviceCrashing")
+	// log.Info().
+	// 	Int("raftID", id).
+	// 	Msg("serviceCrashing")
 	h.DisconnectServiceFromPeers(id)
 	h.alive[id] = false
 	if err := h.kvCluster[id].Shutdown(); err != nil {

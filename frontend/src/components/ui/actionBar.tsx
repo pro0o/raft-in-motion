@@ -14,12 +14,12 @@ interface Action {
 }
 
 const allActions = [
-  { id: "1", label: "SetupHarness", end: "Init Test Env" },
-  { id: "2", label: "RequestBeforeConsensus", end: "Pre-Consensus Request" },
-  { id: "3", label: "PutGetSingleClient", end: "Put/Get Verification" },
-  { id: "4", label: "ConcurrentRequests", end: "Concurrent Ops" },
-  { id: "5", label: "CrashFollower", end: "Crash Follower" },
-  { id: "6", label: "DisconnectLeader", end: "Disconnect Leader" },
+  { id: "6", label: "DisconnectLeader", end: "Leader Disconnection" },
+  { id: "1", label: "SetupHarness", end: "Available soon" },
+  { id: "2", label: "RequestBeforeConsensus", end: "Available soon" },
+  { id: "3", label: "PutGetSingleClient", end: "Available soon" },
+  { id: "4", label: "ConcurrentRequests", end: "Available soon" },
+  { id: "5", label: "CrashFollower", end: "Available soon" },
 ];
 
 function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
@@ -59,39 +59,38 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/>
             </div>
           </div>
-<AnimatePresence>
-  {isOpen && (
-    <motion.div
-      className="w-full overflow-hidden bg-zinc-900/80 backdrop-blur-md text-white absolute left-0 right-0 mt-2 z-20 rounded-b-2xl border border-zinc-700/50"
-      initial={{ opacity: 0, height: 0, y: -20 }}
-      animate={{ opacity: 1, height: "auto", y: 0 }}
-      exit={{ opacity: 0, height: 0, y: -20 }}
-      transition={{ duration: 0.2 }}
-      style={{
-        maxHeight: dropdownMaxHeight ? `${dropdownMaxHeight}px` : "300px",
-        overflowY: "auto",
-      }}
-    >
-      <motion.ul className="py-2">
-        {actions.map((action) => (
-          <motion.li
-            key={action.id}
-            className="px-6 py-3 flex items-center justify-between hover:bg-zinc-700/70 cursor-pointer transition-colors"
-            onClick={() => handleSelectAction(action)}
-          >
-            <span className="text-md font-medium text-zinc-100">{action.label}</span>
-            <div className="flex items-center gap-4 flex-shrink-0">
-              {action.end && (
-                <span className="text-sm text-zinc-400 min-w-16 text-right">{action.end}</span>
-              )}
-            </div>
-          </motion.li>
-        ))}
-      </motion.ul>
-    </motion.div>
-  )}
-</AnimatePresence>
-
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                className="w-full overflow-hidden bg-zinc-900/80 backdrop-blur-md text-white absolute left-0 right-0 mt-2 z-20 rounded-b-2xl border border-zinc-700/50"
+                initial={{ opacity: 0, height: 0, y: -20 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  maxHeight: dropdownMaxHeight ? `${dropdownMaxHeight}px` : "300px",
+                  overflowY: "auto",
+                }}
+              >
+                <motion.ul className="py-2">
+                  {actions.map((action) => (
+                    <motion.li
+                      key={action.id}
+                      className="px-6 py-3 flex items-center justify-between hover:bg-zinc-700/70 cursor-pointer transition-colors"
+                      onClick={() => handleSelectAction(action)}
+                    >
+                      <span className="text-md font-medium text-zinc-100">{action.label}</span>
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        {action.end && (
+                          <span className="text-sm text-zinc-400 min-w-16 text-right">{action.end}</span>
+                        )}
+                      </div>
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
