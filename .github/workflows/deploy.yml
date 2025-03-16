@@ -28,5 +28,5 @@ jobs:
               docker stop raft-container || true &&
               docker rm raft-container || true &&
               docker pull ${{ secrets.DOCKER_USERNAME }}/raft-in-motion:latest &&
-              docker run -d -p 8081:8081 --name raft-container ${{ secrets.DOCKER_USERNAME }}/raft-in-motion:latest
+              docker run -d -p 8081:8081 --name raft-motion ${{ secrets.DOCKER_USERNAME }}/raft-in-motion:latest
           '
