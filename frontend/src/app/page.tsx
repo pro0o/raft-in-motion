@@ -151,7 +151,7 @@ const HomePage: React.FC = () => {
             within em.
           </div>
 
-          <SimulateButton onClick={handleSimulateClick} text={"Let's Simulate"} />
+          <SimulateButton onClick={handleSimulateClick} connectionStatus="home" />
         </div>
       </div>
     </div>

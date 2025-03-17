@@ -1,20 +1,19 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown } from "lucide-react"
 import SimulateButton from "./simulateButton"
-import { useLogs } from "@/context/logsContext"
+import { useLogs, ConnectionStatus } from "@/context/logsContext"
 
 interface Action {
   id: string
   label: string
   end?: string
-
 }
 
 const allActions = [
-  { id: "6", label: "DisconnectLeader", end: "Available soon" },
+  { id: "6", label: "Kill Leader", end: "Kill and respawn leader after consensus" },
   { id: "1", label: "SetupHarness", end: "Available soon" },
   { id: "2", label: "RequestBeforeConsensus", end: "Available soon" },
   { id: "3", label: "PutGetSingleClient", end: "Available soon" },
@@ -26,27 +25,66 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedAction, setSelectedAction] = useState<Action | null>(null)
   const [dropdownMaxHeight, setDropdownMaxHeight] = useState<number | undefined>(undefined)
+  const [buttonStatus, setButtonStatus] = useState<'idle' | 'connecting' | 'failed' | 'simulating' | 'cancel'>('idle')
+  
   const dropdownRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
-  const { connect } = useLogs()
+  
+  const { connect, disconnect, logs, connectionStatus } = useLogs()
+  
+  useEffect(() => {
+    switch (connectionStatus) {
+      case ConnectionStatus.CONNECTING:
+        setButtonStatus('connecting')
+        break
+      case ConnectionStatus.CONNECTED:
+        if (logs.length > 0) {
+          if (logs.length >= 10) {
+            setButtonStatus('cancel')
+          } else {
+            setButtonStatus('simulating')
+          }
+        }
+        break
+      case ConnectionStatus.DISCONNECTED:
+        if (buttonStatus === 'connecting') {
+          setButtonStatus('failed')
+          const timer = setTimeout(() => {
+            setButtonStatus('idle')
+          }, 3000)
+          return () => clearTimeout(timer)
+        } else if (buttonStatus !== 'failed') {
+          setButtonStatus('idle')
+        }
+        break
+    }
+  }, [connectionStatus, logs.length, buttonStatus])
+  
   const handleSimulateClick = () => {
-    if (selectedAction) {
-      connect(selectedAction.id);
+    if (selectedAction && buttonStatus === 'idle') {
+      connect(selectedAction.id)
     }
   }
-
-  const handleSelectAction = (action: Action) => {
-    setSelectedAction(action)
-    setIsOpen(false)
+  
+  const handleCancel = () => {
+    disconnect()
   }
+  const handleSelectAction = (action: Action) => {
+    setSelectedAction(action);
+    setIsOpen(false);
+    setButtonStatus('idle'); 
+  };
+  
 
   return (
     <div className="w-full max-w-3xl mx-auto" ref={containerRef}>
       <div className="relative flex flex-col justify-start items-center min-h-[80px] text-white overflow-visible">
         <div className="w-full shadow-lg border-8 border-gray-200 rounded-2xl z-10 backdrop-blur-sm" ref={dropdownRef}>
           <div className="relative flex items-center justify-between px-4 py-6 h-16 text-lg rounded-xl bg-zinc-900 backdrop-blur-md hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/30">
-            <div ref={triggerRef} className="flex items-center gap-3 w-full" onClick={() => setIsOpen(!isOpen)}>
+          <div ref={triggerRef} className="flex items-center gap-3 w-full" 
+           onClick={() => (buttonStatus === 'idle' || buttonStatus === 'failed') ? setIsOpen(!isOpen) : null}>
+
               <ChevronDown className={`h-6 w-6 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
               {selectedAction ? (
                 <span className="text-zinc-100 text-lg font-medium">{selectedAction.label}</span>
@@ -56,7 +94,11 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             </div>
 
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            {/* <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/> */}
+              <SimulateButton 
+                onClick={handleSimulateClick} 
+                connectionStatus={buttonStatus}
+                onCancel={handleCancel}
+              />
             </div>
           </div>
           <AnimatePresence>
@@ -79,10 +121,10 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
                       className="px-6 py-3 flex items-center justify-between hover:bg-zinc-700/70 cursor-pointer transition-colors"
                       onClick={() => handleSelectAction(action)}
                     >
-                      <span className="text-md font-medium text-zinc-100">{action.label}</span>
+                      <span className="text-md font-medium text-zinc-200">{action.label}</span>
                       <div className="flex items-center gap-4 flex-shrink-0">
                         {action.end && (
-                          <span className="text-sm text-zinc-400 min-w-16 text-right">{action.end}</span>
+                          <span className="text-sm text-zinc-400 min-w-16 text-right tracking-wide">{action.end}</span>
                         )}
                       </div>
                     </motion.li>
@@ -98,4 +140,3 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
 }
 
 export default ActionSearchBar
-

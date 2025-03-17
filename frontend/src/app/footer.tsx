@@ -6,7 +6,7 @@ export default function Footer() {
         { href: "https://github.com", label: "github" },
         { href: "https://twitter.com", label: "twitter" },
         { href: "https://linkedin.com", label: "linkedin" },
-        { href: "/", label: "this simulation was done in golang"},
+        { href: "/", label: "this simulation was done using golang"},
   ]
   
   return (

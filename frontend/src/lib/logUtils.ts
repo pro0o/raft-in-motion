@@ -177,6 +177,6 @@ export const getLogSpeed = (log: Log): number => {
             return { activityText: "Leader node reconnection activity happening", color: "209, 213, 219" }; // Light Gray
 
         default:
-            return { activityText: "System Idle for now...", color: "209, 213, 219" }; // Light Gray
+            return { activityText: "System Idle...", color: "209, 213, 219" }; // Light Gray
     }
 };

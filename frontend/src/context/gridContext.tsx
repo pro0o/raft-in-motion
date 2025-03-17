@@ -10,7 +10,8 @@ export interface LogVisualizationContextType {
 }
 
 export const useLogVisualization = (): LogVisualizationContextType => {
-  const [color, setColor] = useState<string | null>("255, 255, 255")
+  const [color, setColor] = useState<string | null>("220, 220, 220");
+
   const [activity, setActivity] = useState<string | null>("Nothing much happenning rn")
   const { logs, connectionStatus } = useLogs()
 

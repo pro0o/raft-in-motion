@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -11,14 +12,19 @@ import (
 	"go.uber.org/zap"
 )
 
+var ErrMaxClientsReached = errors.New("maximum number of clients reached")
+
+const MaxClients = 3
+
 type Client struct {
-	Conn   *websocket.Conn
-	Send   chan string
-	Closed chan bool
-	Once   sync.Once
-	State  ClientState
-	Logger *logger.MemoryLogger
-	mu     sync.Mutex
+	Conn         *websocket.Conn
+	Send         chan string
+	Closed       chan bool
+	Once         sync.Once
+	State        ClientState
+	Logger       *logger.MemoryLogger
+	mu           sync.Mutex
+	LastActivity time.Time
 }
 
 type ClientState int
@@ -32,17 +38,51 @@ const (
 var activeClients = 0
 var mu sync.Mutex
 
+const IdleTimeout = 5 * time.Second
+
+func CanAcceptNewClient() bool {
+	mu.Lock()
+	defer mu.Unlock()
+	return activeClients < MaxClients
+}
+
 func LogClientConnection(connected bool) {
 	mu.Lock()
 	defer mu.Unlock()
+
 	if connected {
+		if activeClients >= MaxClients {
+			logger.Warn("Attempted to connect client beyond limit", zap.Int("maxClients", MaxClients))
+			return
+		}
 		activeClients++
 	} else {
 		if activeClients > 0 {
 			activeClients--
 		}
 	}
-	logger.Info("Active Clients", zap.Int("activeClients", activeClients))
+	logger.Info("Active Clients", zap.Int("activeClients", activeClients), zap.Int("maxClients", MaxClients))
+}
+
+// NewClient creates a new client if the connection limit hasn't been reached
+func NewClient(conn *websocket.Conn, log *logger.MemoryLogger) (*Client, error) {
+	if !CanAcceptNewClient() {
+		return nil, ErrMaxClientsReached
+	}
+
+	client := &Client{
+		Conn:         conn,
+		Send:         make(chan string),
+		Closed:       make(chan bool),
+		State:        Active,
+		Logger:       log,
+		LastActivity: time.Now(),
+	}
+
+	// Log connection after successful client creation
+	LogClientConnection(true)
+
+	return client, nil
 }
 
 func ReadLoop(c *Client) {
@@ -54,6 +94,11 @@ func ReadLoop(c *Client) {
 			c.State = Disconnected
 			break
 		}
+
+		c.mu.Lock()
+		c.LastActivity = time.Now()
+		c.mu.Unlock()
+
 		c.Logger.Write([]byte(msg))
 		logger.Info("Received", zap.String("message", string(msg)))
 	}
@@ -65,8 +110,10 @@ func WriteLoop(c *Client) {
 	logTicker := time.NewTicker(2 * time.Second)
 	logTicker.Stop()
 
-	tickerActive := false
+	idleChecker := time.NewTicker(1 * time.Second)
+	defer idleChecker.Stop()
 
+	tickerActive := false
 	tickerControl := make(chan bool)
 
 	if c.Logger.HasLogs() {
@@ -97,8 +144,21 @@ func WriteLoop(c *Client) {
 
 	for {
 		select {
+		case <-idleChecker.C:
+			c.mu.Lock()
+			idle := time.Since(c.LastActivity) >= IdleTimeout
+			c.mu.Unlock()
+
+			if idle && c.State == Active {
+				logger.Info("Closing idle client connection", zap.Duration("idle_time", time.Since(c.LastActivity)))
+				return
+			}
+
 		case <-logTicker.C:
-			// logger.Info("ticker called")
+			c.mu.Lock()
+			c.LastActivity = time.Now()
+			c.mu.Unlock()
+
 			logs := c.Logger.GetAndFlushLogs(10)
 
 			if len(logs) == 0 {
@@ -166,4 +226,10 @@ func CleanUp(c *Client) {
 		LogClientConnection(false)
 		c.State = Closed
 	})
+}
+
+func GetActiveClientCount() int {
+	mu.Lock()
+	defer mu.Unlock()
+	return activeClients
 }
