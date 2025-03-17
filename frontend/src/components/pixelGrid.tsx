@@ -115,8 +115,8 @@ const PixelGrid: React.FC = () => {
   
   return (
     <div className="flex flex-col items-center justify-center bg-white">
-      <div className="p-2 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-lg">
-        <canvas
+<div className="p-4 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
+<canvas
           ref={canvasRef}
           width={canvasSize}
           height={canvasSize}
@@ -125,7 +125,7 @@ const PixelGrid: React.FC = () => {
         />
         {activity && (
           <div
-            className="text-md font-md font-mono"
+            className="text-lg font-medium tracking-wide"
             style={{ color: `rgb(${color})`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
           >
             {activity}

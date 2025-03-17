@@ -1,7 +1,6 @@
 import './globals.css'
 import { ReactNode } from 'react'
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+import { GeistMono } from 'geist/font/mono'
 
 export const metadata = {
   title: 'Raft-in-motion',
@@ -10,8 +9,8 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body>
+    <html lang="en" className={GeistMono.variable}>
+      <body className="font-sans">
         {children}
       </body>
     </html>

@@ -25,14 +25,14 @@ export default function SimulateButton({ onClick, text }: SimulateButtonProps) {
           ></div>
 
           <div
-            className="absolute -inset-1 bg-gradient-to-bl from-zinc-200 via-teal-500 to-cyan-500 rounded-lg blur-lg opacity-70 
+            className="absolute -inset-1 bg-gradient-to-bl from-zinc-200 via-teal-300 to-blue-300 rounded-lg blur-lg opacity-80 
                       group-hover:opacity-90 transition duration-300 
                       animate-[pulse_5s_ease-in-out_infinite] group-hover:animate-[spin_5s_linear_infinite]"
           ></div>
         </div>
 
         <Button
-          onClick={onClick}  // Pass onClick to Button
+          onClick={onClick}
           className={cn(
             "relative z-10 transition-all duration-300",
             "bg-zinc-200",

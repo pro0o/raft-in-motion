@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./raft-in-motion/cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/raft-in-motion/main.go
 
 FROM alpine:latest
 

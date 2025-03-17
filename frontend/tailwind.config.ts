@@ -65,8 +65,13 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)"],
-        mono: ["var(--font-geist-mono)"],
+        // sans: ["var(--font-geist-sans)"],
+        // mono: ["var(--font-geist-mono)"],
+        sans: ["Nohemi", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "monospace"],
+      },
+      letterSpacing: {
+        custom: '5.15em', // Add a custom letter spacing value
       },
       borderRadius: {
         lg: "var(--radius)",

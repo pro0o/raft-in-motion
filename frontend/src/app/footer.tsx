@@ -6,6 +6,7 @@ export default function Footer() {
         { href: "https://github.com", label: "github" },
         { href: "https://twitter.com", label: "twitter" },
         { href: "https://linkedin.com", label: "linkedin" },
+        { href: "/", label: "this simulation was done in golang"},
   ]
   
   return (
@@ -16,7 +17,7 @@ export default function Footer() {
             <Link
               key={index}
               href={link.href}
-              className="font-mono text-md lowercase text-zinc-800 underline font-semibold"
+              className="font-medium lowercase text-zinc-800 underline tracking-wider"
             >
               {link.label}
             </Link>

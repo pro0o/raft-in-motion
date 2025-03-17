@@ -10,7 +10,7 @@ const EventHistory = () => {
     <div className="w-full max-w-md mx-auto">
       <div className="bg-zinc-900 border-8 border-gray-200 rounded-2xl overflow-hidden shadow-md">
         <div className="flex items-center justify-between px-5 py-3 0">
-          <h3 className="font-semibold text-white text-base">Event History</h3>
+          <h3 className="font-medium text-white text-base">Event History</h3>
           <span className="text-xs text-zinc-400 font-medium">{logs.length} events</span>
         </div>
         {logs.length > 0 && (

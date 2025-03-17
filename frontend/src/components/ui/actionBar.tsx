@@ -14,7 +14,7 @@ interface Action {
 }
 
 const allActions = [
-  { id: "6", label: "DisconnectLeader", end: "Leader Disconnection" },
+  { id: "6", label: "DisconnectLeader", end: "Available soon" },
   { id: "1", label: "SetupHarness", end: "Available soon" },
   { id: "2", label: "RequestBeforeConsensus", end: "Available soon" },
   { id: "3", label: "PutGetSingleClient", end: "Available soon" },
@@ -56,7 +56,7 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
             </div>
 
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/>
+            {/* <SimulateButton onClick={handleSimulateClick} text={"Simulate"}/> */}
             </div>
           </div>
           <AnimatePresence>
