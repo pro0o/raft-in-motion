@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["geist"],
-  /* config options here */
+  output: 'export',  
+  trailingSlash: true,
 };
 
 export default nextConfig;
