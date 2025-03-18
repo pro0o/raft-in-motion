@@ -22,7 +22,7 @@ export class LogProcessorService {
   }
   
   processStateTransition(log: StateTransitionLog) {
-    const { newState } = log;
+    const { oldState, newState} = log;
     this.onStateChange(newState);
   }
   
@@ -30,16 +30,12 @@ export class LogProcessorService {
     this.onStateChange(log.state);
     this.onTermChange(log.term);
   }
-  processLeaderConnection() {
+  
+  processLeaderConnection(log: LeaderConnectionLog) {
     this.onStateChange(RaftState.FOLLOWER);
   }
   
-  processDisconnection() {
+  processDisconnection(log: DisconnectionLog) {
     this.onStateChange(RaftState.DISCONNECTED);
   }
-  processPeerConnected() { }
-  processPeerDisconnected() { }
-  processShutdown() { }
-  processVote() { }
-  processNodeDead() { }
 }

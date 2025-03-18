@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useServerLogs } from "@/context/logsDispatcher"
 import { RaftState } from "@/types/raftEnums";
 import { ConnectionStatus, useLogs } from "@/context/logsContext";
 import { LogBarData } from "@/types/uiTypes";
-import { Log, StateTransitionLog, PeerConnectedLog, PeerDisconnectedLog, 
-  ElectionTimerLog, ElectionWonLog, ShutdownLog, VoteLog, 
-  LeaderConnectionLog, NodeDeadLog, DisconnectionLog } from "@/types/raftTypes";
+import { Log, StateTransitionLog,  
+  ElectionWonLog, 
+  LeaderConnectionLog, DisconnectionLog } from "@/types/raftTypes";
 import { processLogMessage, getLogColor, getLogSpeed } from "@/lib/logUtils";
 import { ServerHeader } from "@/components/raft/serverHeader";
 import { LogVisualizer } from "@/components/raft/raftVisualizer";
@@ -38,7 +38,68 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
     }
   }, [connectionStatus]);
   
-  const addLogBar = useCallback((log: Log) => {
+  useEffect(() => {
+    if (serverLogs.length === 0) return;
+
+    const latestLog = serverLogs[serverLogs.length - 1];
+    processLog(latestLog);
+  }, [serverLogs]);
+
+  const processLog = (log: Log) => {
+    addLogBar(log);
+  
+    switch (log.message) {
+      case LogMessageType.STATE_TRANSITION:
+        logProcessor.processStateTransition(log as StateTransitionLog);
+        break;
+  
+      case LogMessageType.PEER_CONNECTED:
+        break;
+  
+      case LogMessageType.PEER_DISCONNECTED:
+        break;
+  
+      case LogMessageType.ELECTION_TIMER_STARTED:
+      case LogMessageType.ELECTION_TIMEOUT:
+      case LogMessageType.ELECTION_TIMER_STOPPED_I:
+      case LogMessageType.ELECTION_TIMER_STOPPED_II:
+        break;
+  
+      case LogMessageType.ELECTION_WON:
+        logProcessor.processElectionWon(log as ElectionWonLog);
+        break;
+  
+      case LogMessageType.SHUTDOWN_INITIALIZED:
+      case LogMessageType.SHUTDOWN_COMPLETE:
+        break;
+  
+      case LogMessageType.REQUEST_VOTE:
+      case LogMessageType.RECEIVE_VOTE:
+      case LogMessageType.VOTE_FAILURE:
+        break;
+  
+      case LogMessageType.DISCONNECTING_LEADER:
+      case LogMessageType.SERVICE_DISCONNECTING:
+      case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
+      case LogMessageType.SERVICE_RECONNECTED:
+        logProcessor.processLeaderConnection(log as LeaderConnectionLog);
+        break;
+  
+      case LogMessageType.DISCONNECTION_INITIALIZED:
+      case LogMessageType.DISCONNECTION_COMPLETE:
+        logProcessor.processDisconnection(log as DisconnectionLog);
+        break;
+  
+      case LogMessageType.NODE_DEAD:
+        break;
+  
+      default:
+        console.warn("Unhandled log message type:", log.message);
+        break;
+    }
+  };
+
+  const addLogBar = (log: Log) => {
     const newId = bars.length > 0 ? Math.max(...bars.map((bar) => bar.id)) + 1 : 1;
     const formattedMessage = processLogMessage(log);
     const color = getLogColor(log);
@@ -57,82 +118,15 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
     setTimeout(() => {
       setContainerHeight((prevHeight) => prevHeight + 25);
     }, 10);
-  }, [bars]);
+  };
 
-  const processLog = useCallback((log: Log) => {
-    addLogBar(log);
-  
-    switch (log.message) {
-      case LogMessageType.STATE_TRANSITION:
-        logProcessor.processStateTransition(log as StateTransitionLog);
-        break;
-  
-      case LogMessageType.PEER_CONNECTED:
-        logProcessor.processPeerConnected(log as PeerConnectedLog);
-        break;
-  
-      case LogMessageType.PEER_DISCONNECTED:
-        logProcessor.processPeerDisconnected(log as PeerDisconnectedLog);
-        break;
-  
-      case LogMessageType.ELECTION_TIMER_STARTED:
-      case LogMessageType.ELECTION_TIMEOUT:
-      case LogMessageType.ELECTION_TIMER_STOPPED_I:
-      case LogMessageType.ELECTION_TIMER_STOPPED_II:
-        logProcessor.processElectionTimer(log as ElectionTimerLog);
-        break;
-  
-      case LogMessageType.ELECTION_WON:
-        logProcessor.processElectionWon(log as ElectionWonLog);
-        break;
-  
-      case LogMessageType.SHUTDOWN_INITIALIZED:
-      case LogMessageType.SHUTDOWN_COMPLETE:
-        logProcessor.processShutdown(log as ShutdownLog);
-        break;
-  
-      case LogMessageType.REQUEST_VOTE:
-      case LogMessageType.RECEIVE_VOTE:
-      case LogMessageType.VOTE_FAILURE:
-        logProcessor.processVote(log as VoteLog);
-        break;
-  
-      case LogMessageType.DISCONNECTING_LEADER:
-      case LogMessageType.SERVICE_DISCONNECTING:
-      case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
-      case LogMessageType.SERVICE_RECONNECTED:
-        logProcessor.processLeaderConnection(log as LeaderConnectionLog);
-        break;
-  
-      case LogMessageType.DISCONNECTION_INITIALIZED:
-      case LogMessageType.DISCONNECTION_COMPLETE:
-        logProcessor.processDisconnection(log as DisconnectionLog);
-        break;
-  
-      case LogMessageType.NODE_DEAD:
-        logProcessor.processNodeDead(log as NodeDeadLog);
-        break;
-  
-      default:
-        console.warn("Unhandled log message type:", log.message);
-        break;
-    }
-  }, [addLogBar, logProcessor]);
-
-  useEffect(() => {
-    if (serverLogs.length === 0) return;
-
-    const latestLog = serverLogs[serverLogs.length - 1];
-    processLog(latestLog);
-  }, [serverLogs, processLog]);
-
-  const handleBarExit = useCallback((id) => {
+  const handleBarExit = (id) => {
     setBars((prevBars) => prevBars.filter((bar) => bar.id !== id));
 
     setTimeout(() => {
       setContainerHeight((prevHeight) => Math.max(40, prevHeight - 25));
     }, 100);
-  }, []);
+  };
 
   return (
     <div className="w-full py-4 px-4 space-y-6">
