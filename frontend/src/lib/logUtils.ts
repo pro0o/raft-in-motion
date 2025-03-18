@@ -1,4 +1,4 @@
-import { Log, StateTransitionLog, PeerConnectedLog, PeerDisconnectedLog, VoteLog, ReceiveVoteLog, NodeDeadLog } from "@/types/raftTypes";
+import { Log, StateTransitionLog, PeerConnectedLog, PeerDisconnectedLog, VoteLog, ReceiveVoteLog } from "@/types/raftTypes";
 import { LogMessageType } from "@/types/raftEnums";
 import { logTypeColors } from "@/components/styles/logStyles";
 

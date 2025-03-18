@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useServerLogs } from "@/context/logsDispatcher"
 import { RaftState } from "@/types/raftEnums";
 import { ConnectionStatus, useLogs } from "@/context/logsContext";
@@ -38,14 +38,28 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
     }
   }, [connectionStatus]);
   
-  useEffect(() => {
-    if (serverLogs.length === 0) return;
+  const addLogBar = useCallback((log: Log) => {
+    const newId = bars.length > 0 ? Math.max(...bars.map((bar) => bar.id)) + 1 : 1;
+    const formattedMessage = processLogMessage(log);
+    const color = getLogColor(log);
+    const speed = getLogSpeed(log);
 
-    const latestLog = serverLogs[serverLogs.length - 1];
-    processLog(latestLog);
-  }, [serverLogs]);
+    const newBar = {
+      id: newId,
+      color: color,
+      message: formattedMessage,
+      speed: speed, 
+      timestamp: new Date().toISOString()
+    };
 
-  const processLog = (log: Log) => {
+    setBars((prevBars) => [...prevBars, newBar]);
+
+    setTimeout(() => {
+      setContainerHeight((prevHeight) => prevHeight + 25);
+    }, 10);
+  }, [bars]);
+
+  const processLog = useCallback((log: Log) => {
     addLogBar(log);
   
     switch (log.message) {
@@ -103,36 +117,22 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
         console.warn("Unhandled log message type:", log.message);
         break;
     }
-  };
+  }, [addLogBar, logProcessor]);
 
-  const addLogBar = (log: Log) => {
-    const newId = bars.length > 0 ? Math.max(...bars.map((bar) => bar.id)) + 1 : 1;
-    const formattedMessage = processLogMessage(log);
-    const color = getLogColor(log);
-    const speed = getLogSpeed(log);
+  useEffect(() => {
+    if (serverLogs.length === 0) return;
 
-    const newBar = {
-      id: newId,
-      color: color,
-      message: formattedMessage,
-      speed: speed, 
-      timestamp: new Date().toISOString()
-    };
+    const latestLog = serverLogs[serverLogs.length - 1];
+    processLog(latestLog);
+  }, [serverLogs, processLog]);
 
-    setBars((prevBars) => [...prevBars, newBar]);
-
-    setTimeout(() => {
-      setContainerHeight((prevHeight) => prevHeight + 25);
-    }, 10);
-  };
-
-  const handleBarExit = (id) => {
+  const handleBarExit = useCallback((id) => {
     setBars((prevBars) => prevBars.filter((bar) => bar.id !== id));
 
     setTimeout(() => {
       setContainerHeight((prevHeight) => Math.max(40, prevHeight - 25));
     }, 100);
-  };
+  }, []);
 
   return (
     <div className="w-full py-4 px-4 space-y-6">

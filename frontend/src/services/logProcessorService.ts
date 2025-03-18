@@ -30,11 +30,11 @@ export class LogProcessorService {
     this.onStateChange(log.state);
     this.onTermChange(log.term);
   }
-  processLeaderConnection(log: LeaderConnectionLog) {
+  processLeaderConnection() {
     this.onStateChange(RaftState.FOLLOWER);
   }
   
-  processDisconnection(log: DisconnectionLog) {
+  processDisconnection() {
     this.onStateChange(RaftState.DISCONNECTED);
   }
   processPeerConnected() { }

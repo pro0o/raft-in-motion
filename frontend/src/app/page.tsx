@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import SimulateButton from "@/components/ui/simulateButton"
+import Image from "next/image"
 
 const HomePage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -127,7 +128,13 @@ const HomePage: React.FC = () => {
             role="img"
           />
           <header className="pb-6 lowercase text-md font-medium text-zinc-200 opacity-100">
-            <img src="/assets/raft-in-motion.svg" alt="Raft-in-motion" className="h-9 invert" />
+            <Image
+              src="/assets/raft-in-motion.svg"
+              alt="Raft-in-motion"
+              width={400} 
+              height={400}
+              className="invert"
+            />
           </header>
           <div className="text-zinc-400 text-md font-regular1 max-w-xl mb-12 tracking-wider leading-relaxed text-center">
             Explore the{" "}
