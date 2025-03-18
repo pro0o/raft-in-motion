@@ -20,28 +20,29 @@ export const LogDispatcherProvider: React.FC<{ children: React.ReactNode }> = ({
   const resetLogProcessing = useCallback(() => {
     lastProcessedIndexRef.current = -1;
   }, []);
-
+  
   useEffect(() => {
     if (lastProcessedIndexRef.current >= logs.length - 1) return;
-
+  
     const unprocessedLogs = logs
       .slice(lastProcessedIndexRef.current + 1)
-      .filter((log): log is Log => 'raftID' in log && typeof log.raftID === 'number');
+      .filter((log): log is Log & { raftID: number } => 'raftID' in log && typeof log.raftID === 'number');
     
     if (unprocessedLogs.length === 0) {
       lastProcessedIndexRef.current = logs.length - 1;
       return;
     }
-
+  
     unprocessedLogs.forEach((log) => {
       const callback = serverCallbacksRef.current.get(log.raftID);
       if (callback) {
         callback(log);
       }
     });
-
+  
     lastProcessedIndexRef.current = logs.length - 1;
   }, [logs]);
+  
 
   useEffect(() => {
     resetLogProcessing();

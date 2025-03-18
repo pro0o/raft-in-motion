@@ -3,6 +3,15 @@ import type React from "react"
 import { useEffect, useRef } from "react"
 import { useLogVisualization } from "@/context/gridContext"
 
+// Define interface for pixel position objects
+interface PixelPosition {
+  x: number
+  y: number
+  centerX: number
+  centerY: number
+  index: number
+}
+
 const PixelGrid: React.FC = () => {
   const { color, activity } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -21,11 +30,11 @@ const PixelGrid: React.FC = () => {
     if (!ctx) return
     
     // Use a Map to only store active pixels
-    const activePixels = new Map()
+    const activePixels = new Map<number, number>()
     let frameCount = 0
     
     // Pre-calculate pixel positions
-    const pixelPositions = []
+    const pixelPositions: PixelPosition[] = []
     for (let y = 0; y < gridSize; y++) {
       for (let x = 0; x < gridSize; x++) {
         pixelPositions.push({
@@ -63,7 +72,7 @@ const PixelGrid: React.FC = () => {
       
       // Update only a subset of pixels (5% instead of 20%)
       const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.05)
-      const randomIndices = new Set()
+      const randomIndices = new Set<number>()
       
       while (randomIndices.size < pixelsToUpdate) {
         randomIndices.add(Math.floor(Math.random() * pixelPositions.length))
@@ -115,8 +124,8 @@ const PixelGrid: React.FC = () => {
   
   return (
     <div className="flex flex-col items-center justify-center bg-white">
-<div className="p-4 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
-<canvas
+      <div className="p-4 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
+        <canvas
           ref={canvasRef}
           width={canvasSize}
           height={canvasSize}

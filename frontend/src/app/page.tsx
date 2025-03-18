@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation"
 import SimulateButton from "@/components/ui/simulateButton"
 import Image from "next/image"
 
+// Define an interface for the pixel position objects
+interface PixelPosition {
+  x: number
+  y: number
+  centerX: number
+  centerY: number
+  index: number
+}
+
 const HomePage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
@@ -28,11 +37,11 @@ const HomePage: React.FC = () => {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const activePixels = new Map()
+    const activePixels = new Map<number, number>()
     let frameCount = 0
     let animationFrameId: number
 
-    const pixelPositions = []
+    const pixelPositions: PixelPosition[] = []
     for (let y = 0; y < gridSize; y++) {
       for (let x = 0; x < gridSize; x++) {
         pixelPositions.push({
@@ -70,7 +79,7 @@ const HomePage: React.FC = () => {
 
       const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.08)
 
-      const randomIndices = new Set()
+      const randomIndices = new Set<number>()
       while (randomIndices.size < pixelsToUpdate) {
         randomIndices.add(Math.floor(Math.random() * pixelPositions.length))
       }
@@ -156,4 +165,3 @@ const HomePage: React.FC = () => {
 }
 
 export default HomePage
-

@@ -22,11 +22,12 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
   const [currentTerm, setCurrentTerm] = useState<number>(0);
   const [bars, setBars] = useState<LogBarData[]>([]);
   const [containerHeight, setContainerHeight] = useState(40);
-  const containerRef = useRef(null);
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const serverLogs = useServerLogs(raftID);
   const { connectionStatus } = useLogs(); 
   const logProcessor = new LogProcessorService(raftID, setCurrentState, setCurrentTerm);
+  
 
   useEffect(() => {
     if (connectionStatus === ConnectionStatus.CONNECTING) {
@@ -119,9 +120,9 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
     }, 10);
   };
 
-  const handleBarExit = (id) => {
+  const handleBarExit = (id: string | number) => {
     setBars((prevBars) => prevBars.filter((bar) => bar.id !== id));
-
+  
     setTimeout(() => {
       setContainerHeight((prevHeight) => Math.max(40, prevHeight - 25));
     }, 100);

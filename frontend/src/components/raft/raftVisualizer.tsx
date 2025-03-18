@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogBarData } from "@/types/uiTypes";
 
 interface LogVisualizerProps {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   containerHeight: number;
   bars: LogBarData[];
   handleBarExit: (id: number) => void;
