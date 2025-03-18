@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import SimulateButton from "@/components/ui/simulateButton"
 import Image from "next/image"
 
-// Define an interface for the pixel position objects
 interface PixelPosition {
   x: number
   y: number
