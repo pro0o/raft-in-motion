@@ -3,16 +3,16 @@
 import { LogsProvider } from "@/context/logsContext"
 import ServerInstance from "@/components/serverInstance"
 import { LogDispatcherProvider } from "@/context/logsDispatcher"
-import PixelGrid from "@/components/pixelGrid";
-import EventHistory from "@/components/eventHistory";
-import ActionSearchBar from "@/components/ui/actionBar";
-import Footer from "../footer";
+import PixelGrid from "@/components/pixelGrid"
+import EventHistory from "@/components/eventHistory"
+import ActionSearchBar from "@/components/ui/actionBar"
+import Footer from "../footer"
 
 export default function RaftPage() {
-  const instances = [0, 1, 2];
+  const instances = [0, 1, 2]
 
   return (
-    <div className="flex flex-col bg-white h-screen p-8 items-center justify-center">
+    <div className="flex flex-col bg-white h-screen items-center justify-center pt-32 pb-8">
       <LogsProvider>
         <LogDispatcherProvider>
           <div className="flex flex-row w-full max-w-6xl gap-4 items-center justify-center">
@@ -24,14 +24,14 @@ export default function RaftPage() {
               ))}
             </div>
             <div className="w-2/5 flex flex-col gap-4">
-              <ActionSearchBar/>
+              <ActionSearchBar />
               <PixelGrid />
               <EventHistory />
             </div>
           </div>
         </LogDispatcherProvider>
       </LogsProvider>
-      <Footer/>
+      <Footer />
     </div>
-  );
+  )
 }

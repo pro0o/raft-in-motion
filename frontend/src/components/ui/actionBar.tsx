@@ -87,9 +87,9 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
 
               <ChevronDown className={`h-6 w-6 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
               {selectedAction ? (
-                <span className="text-zinc-100 text-lg font-medium">{selectedAction.label}</span>
+                <span className="text-zinc-100 text-md font-medium">{selectedAction.label}</span>
               ) : (
-                <span className="text-zinc-400 text-lg">Select a simulation to try</span>
+                <span className="text-zinc-400 font-normal">Select a simulation to try</span>
               )}
             </div>
 

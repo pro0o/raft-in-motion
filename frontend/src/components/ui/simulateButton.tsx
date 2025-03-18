@@ -61,7 +61,7 @@ export default function SimulateButton({
             "bg-zinc-200",
             !isDisabled && "group-hover:bg-white/10 group-hover:backdrop-blur-md group-hover:border-white",
             connectionStatus === 'cancel' ? "text-red-900" : "text-zinc-800", 
-            "text-xs tracking-normal",
+            "text-lg tracking-normal",
             !isDisabled && "group-hover:text-zinc-200",
             "shadow-none",
             !isDisabled && "group-hover:[box-shadow:0_0_6px_3px_rgba(103,232,249,0.2),0_0_12px_6px_rgba(56,189,248,0.15),0_0_3px_2px_rgba(186,230,253,0.3)]",
