@@ -17,7 +17,7 @@ export class WebSocketService {
     const finalUrl = `${this.baseUrl}?simulate=${action}`;
     this.ws = new WebSocket(finalUrl);
 
-    console.log(`Connected: ${finalUrl}`);
+    // console.log(`Connected: ${finalUrl}`);
     this.ws.onopen = () => {
       if (this.onOpen) {
         this.onOpen();
@@ -40,7 +40,7 @@ export class WebSocketService {
     };
 
     this.ws.onclose = () => {
-      console.log("Connection closed");
+      // console.log("Connection closed");
       if (this.onClose) {
         this.onClose();
       }

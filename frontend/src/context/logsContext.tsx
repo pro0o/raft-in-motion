@@ -7,7 +7,7 @@ import { Log, ServerListeningLog, PeerConnectedLog,
   PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog  } from "@/types/raftTypes";
 
 const WS_ENDPOINT = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8081/ws';
-const LOG_FLUSH_INTERVAL = 500; 
+const LOG_FLUSH_INTERVAL = 750; 
 
 export enum ConnectionStatus {
   DISCONNECTED,
@@ -23,7 +23,7 @@ interface LogsContextType {
   connectionStatus: ConnectionStatus; 
 }
 
-const parseLog = (rawLog: any): Log | null => {
+const parseLog = (rawLog: Partial<Log>): Log | null => {
   if (!rawLog || typeof rawLog !== "object" || !rawLog.message) {
     console.warn("Invalid log received:", rawLog);
     return null;
@@ -113,7 +113,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wsServiceRef.current = null;
     }
     setConnectionStatus(ConnectionStatus.DISCONNECTED);
-    console.log(`Total logs processed: ${logs.length}`);
+    // console.log(`Total logs processed: ${logs.length}`);
   }, [logs.length]);
 
   const startFlushing = useCallback(() => {
@@ -133,7 +133,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, LOG_FLUSH_INTERVAL);
   }, []);
 
-  const enqueueLog = useCallback((rawLogs: any) => {
+  const enqueueLog = useCallback((rawLogs: Log | Log[]) => {
     if (Array.isArray(rawLogs)) {
       rawLogs.forEach((rawLog) => {
         const parsedLog = parseLog(rawLog);
@@ -170,7 +170,7 @@ export const LogsProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetState();
       
       setConnectionStatus(ConnectionStatus.CONNECTING);
-      console.log("the ws endpoint is:", WS_ENDPOINT)
+      // console.log("the ws endpoint is:", WS_ENDPOINT)
       
       const newWsService = new WebSocketService(WS_ENDPOINT);
       newWsService.onLogReceived = enqueueLog;

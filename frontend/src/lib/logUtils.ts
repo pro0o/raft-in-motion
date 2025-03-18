@@ -68,8 +68,7 @@ export const processLogMessage = (log: Log): string => {
         return `Service Reconnected`;
       
       case LogMessageType.NODE_DEAD:
-        const nodeDeadLog = log as NodeDeadLog;
-        return `Node Dead`;
+          return `Node Dead`;
       
       default:
         return `${log.message}`;
@@ -112,7 +111,7 @@ export const getLogSpeed = (log: Log): number => {
       case LogMessageType.STATE_TRANSITION:
       case LogMessageType.ELECTION_WON:
       case LogMessageType.NODE_DEAD:
-        return 4; 
+        return 6; 
         
       case LogMessageType.ELECTION_TIMEOUT:
       case LogMessageType.REQUEST_VOTE:
@@ -138,7 +137,7 @@ export const getLogSpeed = (log: Log): number => {
         return 5;
         
       default:
-        return 4; 
+        return 5; 
     }
   };
   

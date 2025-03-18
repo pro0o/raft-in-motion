@@ -3,8 +3,11 @@ import { ReactNode } from 'react'
 import { GeistMono } from 'geist/font/mono'
 
 export const metadata = {
-  title: 'Raft-in-motion',
+  title: 'raft',
   description: 'A minimal single-page Raft logs demo',
+  icons: {
+    icon: '/favicon.png',
+  }
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

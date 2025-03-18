@@ -13,7 +13,7 @@ interface Action {
 }
 
 const allActions = [
-  { id: "6", label: "Kill Leader", end: "Kill and respawn leader after consensus" },
+  { id: "6", label: "Kill And Respawn", end: "Kill and respawn leader after consensus" },
   { id: "1", label: "SetupHarness", end: "Available soon" },
   { id: "2", label: "RequestBeforeConsensus", end: "Available soon" },
   { id: "3", label: "PutGetSingleClient", end: "Available soon" },
@@ -24,7 +24,7 @@ const allActions = [
 function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedAction, setSelectedAction] = useState<Action | null>(null)
-  const [dropdownMaxHeight, setDropdownMaxHeight] = useState<number | undefined>(undefined)
+  const [dropdownMaxHeight] = useState<number | undefined>(undefined)
   const [buttonStatus, setButtonStatus] = useState<'idle' | 'connecting' | 'failed' | 'simulating' | 'cancel'>('idle')
   
   const dropdownRef = useRef<HTMLDivElement>(null)

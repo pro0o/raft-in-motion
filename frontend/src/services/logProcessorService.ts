@@ -1,13 +1,7 @@
 import { 
   StateTransitionLog, 
-  PeerConnectedLog, 
-  PeerDisconnectedLog,
-  ElectionTimerLog, 
   ElectionWonLog, 
-  ShutdownLog, 
-  VoteLog,
   LeaderConnectionLog, 
-  NodeDeadLog, 
   DisconnectionLog 
 } from "@/types/raftTypes";
 import { RaftState } from "@/types/raftEnums";
@@ -28,32 +22,14 @@ export class LogProcessorService {
   }
   
   processStateTransition(log: StateTransitionLog) {
-    const { oldState, newState} = log;
+    const { newState } = log;
     this.onStateChange(newState);
-  }
-  
-  processPeerConnected(log: PeerConnectedLog) {
-  }
-  
-  processPeerDisconnected(log: PeerDisconnectedLog) {
-  }
-  
-  processElectionTimer(log: ElectionTimerLog) {
-    // this.onStateChange(log.state);
-    // this.onTermChange(log.term);
   }
   
   processElectionWon(log: ElectionWonLog) {
     this.onStateChange(log.state);
     this.onTermChange(log.term);
   }
-  
-  processShutdown(log: ShutdownLog) {
-  }
-  
-  processVote(log: VoteLog) {
-  }
-  
   processLeaderConnection(log: LeaderConnectionLog) {
     this.onStateChange(RaftState.FOLLOWER);
   }
@@ -61,7 +37,9 @@ export class LogProcessorService {
   processDisconnection(log: DisconnectionLog) {
     this.onStateChange(RaftState.DISCONNECTED);
   }
-  
-  processNodeDead(log: NodeDeadLog) {
-  }
+  processPeerConnected() { }
+  processPeerDisconnected() { }
+  processShutdown() { }
+  processVote() { }
+  processNodeDead() { }
 }
