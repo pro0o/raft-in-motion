@@ -82,12 +82,12 @@ export default function ServerInstance({ raftID }: ServerInstanceProps) {
       case LogMessageType.SERVICE_DISCONNECTING:
       case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
       case LogMessageType.SERVICE_RECONNECTED:
-        logProcessor.processLeaderConnection(log as LeaderConnectionLog);
+        logProcessor.processLeaderConnection();
         break;
   
       case LogMessageType.DISCONNECTION_INITIALIZED:
       case LogMessageType.DISCONNECTION_COMPLETE:
-        logProcessor.processDisconnection(log as DisconnectionLog);
+        logProcessor.processDisconnection();
         break;
   
       case LogMessageType.NODE_DEAD:
