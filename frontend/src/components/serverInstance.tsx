@@ -6,8 +6,7 @@ import { RaftState } from "@/types/raftEnums";
 import { ConnectionStatus, useLogs } from "@/context/logsContext";
 import { LogBarData } from "@/types/uiTypes";
 import { Log, StateTransitionLog,  
-  ElectionWonLog, 
-  LeaderConnectionLog, DisconnectionLog } from "@/types/raftTypes";
+  ElectionWonLog} from "@/types/raftTypes";
 import { processLogMessage, getLogColor, getLogSpeed } from "@/lib/logUtils";
 import { ServerHeader } from "@/components/raft/serverHeader";
 import { LogVisualizer } from "@/components/raft/raftVisualizer";

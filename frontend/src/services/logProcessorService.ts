@@ -1,8 +1,6 @@
 import { 
   StateTransitionLog, 
-  ElectionWonLog, 
-  LeaderConnectionLog, 
-  DisconnectionLog 
+  ElectionWonLog 
 } from "@/types/raftTypes";
 import { RaftState } from "@/types/raftEnums";
 
