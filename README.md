@@ -4,8 +4,8 @@
 
 ## Intro...
 
-This simulation is purely based on the [Raft paper](https://raft.github.io/).  
-I started off this project just testing the Raft algorithm in Go, and logs were spitting out pretty nicely. But then thought, why not **visualize** the whole thing? So, here's the simulation with visualization.
+This simulation is purely based on the [Raft paper](https://raft.github.io/raft.pdf).  
+I started off this project just testing out and simualting the Raft consensus algorithm in Go, and it was working decently. But then thought, why not **visualize** the whole process of the consensus? So, here's the simulation with visualization.
 
 Feel free to explore the Go-only simulation in the `raft-test` branch, its not well optimized though.
 
@@ -13,10 +13,10 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 
 ## Features so far 
 
-- [x] Spawn servers and hold consensus (eventual elections and all).
-- [x] Reliable ping-pong between leader and followers.
-- [x] Simple KV client on the application layer (`put` & `get` only for now).
-- [x] Kill & respawn leaders and followers working fineeeee.
+- [x] Spawn servers and hold consensus among them (eventual elections).
+- [x] Timely ping-pong [AppendEntries] between leader and followers through rpc.
+- [x] Simple KV client & server on the application layer (`put` & `get` only for now).
+- [x] Kill & respawn leaders and followers.
 - [x] Log entries get updated via leader heartbeats.
 - [x] ws conn between client-side (Next.js) & ws-server based on log state.
 - [x] Logs visualization on the client-side.
@@ -28,15 +28,12 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 - [ ] Add reliable persistent storage.
 - [ ] Cross-check against the Raft paper — still fails a few cases like frequent leader disconnects.
 - [ ] Sync logs more tightly between leader and followers.
-- [ ] More test cases with a larger number of servers.
-- [ ] Simulate more cases and send it out to the clientside.
-- [ ] Reduce rate-limiting and allow more active connections.
+- [ ] Simulate more cases and send it out to the client-side.
+- [ ] Reduce rate-limiting and allow more active conn.
 
 ---
 
 ## Project Structure
-
-The project is organized into several main components:
 
 - `cmd/` - Contains the main entry point for the Go application
 - `frontend/` - Next.js web interface for visualization
@@ -52,34 +49,41 @@ The project is organized into several main components:
 ## Running the Project
 
 ```bash
-# Build and run the Docker container
+# running the go ws server.
 docker build -t raft-in-motion .
 docker run -p 8080:8080 raft-in-motion
 ```
 
 
 ```bash
-# Navigate to the frontend directory
+# client-side 
 cd frontend/
-
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
 
-# For production
+# For prod, make sure to create a `.env.prod` file in the root dir.
+NEXT_PUBLIC_WS_ENDPOINT=wss://localhost:8080/ws?simulate=6
 npm run build
 ```
+## Resources to Learn More About Raft
 
-```
-# For prod, create a `.env.prod` file in the root dir.
-NEXT_PUBLIC_WS_ENDPOINT=wss://localhost:8080/ws?simulate=6
-```
+Here are some resources I took reference and learned from while building this project — in no particular order:
+
+- [A Student’s Guide to Raft](https://thesquareplanet.com/blog/students-guide-to-raft/) [more of a guide to understand the paper.]
+
+- [The Secret Lives of Data — Raft Visualization](https://thesecretlivesofdata.com/raft/)  [visualization of raft.]
+
+- [6.824 Distributed Systems Course (YouTube)](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some few labs on Go as well.]
+
+- [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [raft implementaion in go]
+
+- [HashiCorp's Raft Go Package](https://pkg.go.dev/github.com/hashicorp/raft)  [official go raft pkg]
+
+- [Raft Implementations](http://raft.github.io/#implementations) [there are already many implementation of raft in Go and other languages too.] 
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the CC BY-NC-ND 4.0 License. See the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
