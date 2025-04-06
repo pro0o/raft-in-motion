@@ -13,22 +13,17 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 
 ## Features so far 
 
-- [x] Spawn servers and hold consensus among them (eventual elections).
-- [x] Timely ping-pong [AppendEntries] between leader and followers through rpc.
-- [x] Simple KV client & server on the application layer (`put` & `get` only for now).
+- [x] Spawn servers and hold consensus.
+- [x] Timely ping-pong through RPC.
+- [x] Simple KV client & server on app layer.
 - [x] Kill & respawn leaders and followers.
-- [x] Log entries get updated via leader heartbeats.
-- [x] ws conn between client-side (Next.js) & ws-server based on log state.
-- [x] Logs visualization on the client-side.
-
----
-
-## Still some features to implement 
-
-- [ ] Add reliable persistent storage.
-- [ ] Cross-check against the Raft paper — still fails a few cases like frequent leader disconnects.
-- [ ] Sync logs more tightly between leader and followers.
-- [ ] Simulate more cases and send it out to the client-side.
+- [x] Update Log entries via leader heartbeats.
+- [x] ws conn between client-side & ws-server.
+- [x] Logs visualization.
+- [ ] Reliable persistent storage.
+- [ ] Still some test cases fails, fix them.
+- [ ] Sync logs more tightly.
+- [ ] Simulate more cases and visualize.
 - [ ] Reduce rate-limiting and allow more active conn.
 
 ---
@@ -67,7 +62,7 @@ npm run build
 ```
 ## Resources to Learn More About Raft
 
-Here are some resources I took reference and learned from while building this project — in no particular order:
+Here are some resources I referenced and learned from while building this project — in no particular order:
 
 - [A Student’s Guide to Raft](https://thesquareplanet.com/blog/students-guide-to-raft/) [more of a guide to understand the paper.]
 
