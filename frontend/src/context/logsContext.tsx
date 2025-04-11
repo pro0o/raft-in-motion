@@ -6,7 +6,7 @@ import { Log, ServerListeningLog, PeerConnectedLog,
   ElectionWonLog, PutRequestInitiatedLog, ResponseLeaderLog,
   PutRequestCompletedLog, LeaderConnectionLog, ShutdownLog, NodeDeadLog, DisconnectionLog  } from "@/types/raftTypes";
 
-const WS_ENDPOINT = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'wss://localhost:8081/ws';
+const WS_ENDPOINT = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8081/ws';
 const LOG_FLUSH_INTERVAL = 750; 
 
 export enum ConnectionStatus {

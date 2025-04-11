@@ -65,8 +65,6 @@ export default {
         },
       },
       fontFamily: {
-        // sans: ["var(--font-geist-sans)"],
-        // mono: ["var(--font-geist-mono)"],
         sans: ["Nohemi", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },

@@ -5,7 +5,7 @@
 ## Intro...
 
 This simulation is purely based on the [Raft paper](https://raft.github.io/raft.pdf).  
-I started off this project just testing out and simualting the Raft consensus algorithm in Go, and it was working decently. But then thought, why not **visualize** the whole process of the consensus? So, here's the simulation with visualization.
+I started off this project just testing & simulating the Raft consensus algorithm, and welll, visualization happened on the way :).
 
 Feel free to explore the Go-only simulation in the `raft-test` branch, its not well optimized though.
 
@@ -20,26 +20,29 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 - [x] Update Log entries via leader heartbeats.
 - [x] ws conn between client-side & ws-server.
 - [x] Logs visualization.
+- [x] CI/CD pipeline w/[docker + aws ec2] & vercel.
+- [x] Rev. proxy using Nginx [No-IP + Let's Encrypt SSL].
 - [ ] Reliable persistent storage.
 - [ ] Still some test cases fails, fix them.
 - [ ] Sync logs more tightly.
 - [ ] Simulate more cases and visualize.
 - [ ] Reduce rate-limiting and allow more active conn.
+- [ ] Responsive UI.
+- [ ] Interactive Simulations.
 
 ---
 
 ## Project Structure
 
-- `cmd/` - Contains the main entry point for the Go application
-- `frontend/` - Next.js web interface for visualization
-- `internal/` - Core logic including:
-  - `client/` - Client implementation
-  - `harness/` - Testing harness
-  - `kv/` - Key-value store implementation
-  - `logger/` - Logging utilities
-  - `raft/` - Raft consensus algorithm implementation
-  - `ws/` - WebSocket handling
-
+- `cmd/`        - Main entry point of the Go application  
+- `frontend/`   - Next.js client-side for visualization  
+- `internal/`   - Core logic:  
+  - `client/`    - Client implementation  
+  - `harness/`   - Test harness  
+  - `kv/`        - Key-value store  
+  - `logger/`    - Logging utilities  
+  - `raft/`      - Raft consensus  
+  - `ws/`        - WebSocket handling  
 
 ## Running the Project
 
@@ -48,7 +51,6 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 docker build -t raft-in-motion .
 docker run -p 8080:8080 raft-in-motion
 ```
-
 
 ```bash
 # client-side 
@@ -68,7 +70,7 @@ Here are some resources I referenced and learned from while building this projec
 
 - [The Secret Lives of Data — Raft Visualization](https://thesecretlivesofdata.com/raft/)  [visualization of raft.]
 
-- [6.824 Distributed Systems Course (YouTube)](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some few labs on Go as well.]
+- [6.824 Distributed Systems Course (YouTube)](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some labs on Go as well.]
 
 - [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [raft implementaion in go]
 

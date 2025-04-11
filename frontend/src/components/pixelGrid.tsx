@@ -2,6 +2,7 @@
 import type React from "react"
 import { useEffect, useRef } from "react"
 import { useLogVisualization } from "@/context/gridContext"
+import { useMediaQuery } from "@/context/mediaQuery"
 
 // Define interface for pixel position objects
 interface PixelPosition {
@@ -16,23 +17,30 @@ const PixelGrid: React.FC = () => {
   const { color, activity } = useLogVisualization()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number>(0)
-  
-  const pixelSize = 6
-  const gap = 8
-  const gridSize = 80
-  const canvasSize = 400
-  
+  const isMobile = useMediaQuery("(max-width: 640px)")
+  const isTablet = useMediaQuery("(max-width: 1024px)")
+
+  // Responsive canvas sizing
+  const pixelSize = isMobile ? 4 : 6
+  const gap = isMobile ? 6 : 8
+  const gridSize = isMobile ? 60 : isTablet ? 70 : 80
+  const canvasSize = isMobile ? 300 : isTablet ? 350 : 400
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    
+
+    // Set canvas dimensions based on current size
+    canvas.width = canvasSize
+    canvas.height = canvasSize
+
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    
+
     // Use a Map to only store active pixels
     const activePixels = new Map<number, number>()
     let frameCount = 0
-    
+
     // Pre-calculate pixel positions
     const pixelPositions: PixelPosition[] = []
     for (let y = 0; y < gridSize; y++) {
@@ -42,14 +50,14 @@ const PixelGrid: React.FC = () => {
           y: y * (pixelSize + gap),
           centerX: x * (pixelSize + gap) + pixelSize / 2,
           centerY: y * (pixelSize + gap) + pixelSize / 2,
-          index: y * gridSize + x
+          index: y * gridSize + x,
         })
       }
     }
 
     const getCircleRadius = (frame: number) => {
-      const minRadius = 60
-      const maxRadius = 150
+      const minRadius = canvasSize * 0.15
+      const maxRadius = canvasSize * 0.375
       const amplitude = (maxRadius - minRadius) / 2
       const centerRadius = minRadius + amplitude
       return centerRadius + amplitude * Math.sin(frame * 0.01)
@@ -62,33 +70,33 @@ const PixelGrid: React.FC = () => {
       const dy = y - centerY
       return dx * dx + dy * dy <= radius * radius
     }
-    
+
     const updateAndDrawPixels = () => {
       // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
+
       // Get current circle radius
       const radius = getCircleRadius(frameCount)
-      
+
       // Update only a subset of pixels (5% instead of 20%)
       const pixelsToUpdate = Math.floor(gridSize * gridSize * 0.05)
       const randomIndices = new Set<number>()
-      
+
       while (randomIndices.size < pixelsToUpdate) {
         randomIndices.add(Math.floor(Math.random() * pixelPositions.length))
       }
-      
+
       // Process selected pixels
-      randomIndices.forEach(i => {
+      randomIndices.forEach((i) => {
         const pixel = pixelPositions[i]
-        
+
         if (isInsideCircle(pixel.centerX, pixel.centerY, radius)) {
           activePixels.set(pixel.index, Math.random() * 0.6 + 0.2)
         } else {
           activePixels.delete(pixel.index)
         }
       })
-      
+
       // Draw only active pixels
       ctx.fillStyle = `rgba(${color}, 1)`
       activePixels.forEach((opacity, index) => {
@@ -103,12 +111,12 @@ const PixelGrid: React.FC = () => {
 
     const animate = () => {
       frameCount++
-      
+
       // Reduce update frequency - only update every 8 frames
       if (frameCount % 8 === 0) {
         updateAndDrawPixels()
       }
-      
+
       animationRef.current = requestAnimationFrame(animate)
     }
 
@@ -120,11 +128,11 @@ const PixelGrid: React.FC = () => {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [color]) // Only re-initialize when color changes
-  
+  }, [color, canvasSize, pixelSize, gap, gridSize]) // Re-initialize when responsive values change
+
   return (
     <div className="flex flex-col items-center justify-center bg-white">
-      <div className="p-4 border-8 border-gray-200 rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
+      <div className="p-2 sm:p-3 md:p-4 border-4 sm:border-6 md:border-8 border-gray-200 rounded-xl sm:rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
         <canvas
           ref={canvasRef}
           width={canvasSize}
@@ -134,8 +142,8 @@ const PixelGrid: React.FC = () => {
         />
         {activity && (
           <div
-            className="text-lg font-medium tracking-wide"
-            style={{ color: `rgb(${color})`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            className="text-sm sm:text-base md:text-lg font-medium tracking-wide text-center py-1 sm:py-2"
+            style={{ color: `rgb(${color})` }}
           >
             {activity}
           </div>

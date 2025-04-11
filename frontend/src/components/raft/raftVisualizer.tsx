@@ -1,22 +1,22 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { LogBarData } from "@/types/uiTypes";
+"use client"
+
+import type React from "react"
+
+import { motion, AnimatePresence } from "framer-motion"
+import type { LogBarData } from "@/types/uiTypes"
 
 interface LogVisualizerProps {
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  containerHeight: number;
-  bars: LogBarData[];
-  handleBarExit: (id: number) => void;
+  containerRef: React.RefObject<HTMLDivElement | null>
+  containerHeight: number
+  bars: LogBarData[]
+  handleBarExit: (id: number) => void
 }
 
-export function LogVisualizer({ 
-  containerRef, 
-  containerHeight, 
-  bars, 
-  handleBarExit 
-}: LogVisualizerProps) {
+export function LogVisualizer({ containerRef, containerHeight, bars, handleBarExit }: LogVisualizerProps) {
+
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="w-full bg-zinc-900 h-40 overflow-y-auto">
+      <div className="w-full bg-zinc-900 h-28 sm:h-32 md:h-40 overflow-y-auto">
         <motion.div
           ref={containerRef}
           className="relative w-full bg-zinc-800/80 rounded-sm overflow-hidden backdrop-blur-sm"
@@ -36,7 +36,7 @@ export function LogVisualizer({
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
                 <motion.div
-                  className={`absolute left-0 h-5 rounded-sm flex items-center justify-start px-3 ${bar.color.bg} shadow-lg`}
+                  className={`absolute left-0 h-5 rounded-sm flex items-center justify-start px-2 sm:px-3 ${bar.color.bg} shadow-lg`}
                   style={{
                     width: "80%",
                     boxShadow: `0 0 15px 0 ${bar.color.glow.replace("bg-", "rgba(").replace("/20", ", 0.2)")}`,
@@ -46,7 +46,9 @@ export function LogVisualizer({
                   transition={{ duration: bar.speed, ease: "linear" }}
                   onAnimationComplete={() => handleBarExit(bar.id)}
                 >
-                  <motion.span className={`text-sm font-mono ${bar.color.text} whitespace-nowrap opacity-90`}>
+                  <motion.span
+                    className={`text-xs sm:text-sm font-mono ${bar.color.text} whitespace-nowrap opacity-90 truncate max-w-full`}
+                  >
                     {bar.message}
                   </motion.span>
                   <motion.div
@@ -62,5 +64,5 @@ export function LogVisualizer({
         </motion.div>
       </div>
     </div>
-  );
+  )
 }
