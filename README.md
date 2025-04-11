@@ -7,7 +7,7 @@
 This simulation is purely based on the [Raft paper](https://raft.github.io/raft.pdf).  
 I started off this project just testing & simulating the Raft consensus algorithm, and welll, visualization happened on the way :).
 
-Feel free to explore the Go-only simulation in the `raft-test` branch, its not well optimized though.
+Feel free to explore the Go-only simulation in the `raft-test` branch, its not well optimized though. Also incase, the simulation is not simulating, its because aws is expensive.
 
 ---
 
