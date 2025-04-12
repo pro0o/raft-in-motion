@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useLogs, ConnectionStatus } from "@/context/logsContext"
+import { useLogs } from "@/context/logsContext"
 import { processActivity } from "@/lib/logUtils"
 
 export interface LogVisualizationContextType {
