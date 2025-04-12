@@ -140,42 +140,41 @@ export const getLogSpeed = (log: Log): number => {
         return 5; 
     }
   };
-  
   export const processActivity = (log: Log): { activityText: string; color: string } => {
     switch (log.message) {
-        case LogMessageType.ELECTION_TIMER_STARTED:
-        case LogMessageType.ELECTION_TIMEOUT:
-        case LogMessageType.ELECTION_WON:
-        case LogMessageType.ELECTION_TIMER_STOPPED_I:
-        case LogMessageType.ELECTION_TIMER_STOPPED_II:
-        case LogMessageType.REQUEST_VOTE:
-        case LogMessageType.RECEIVE_VOTE:
-        case LogMessageType.VOTE_FAILURE:
-            return { activityText: "General election happening", color: "16, 185, 129" }; // Emerald (Green)
-
-        case LogMessageType.PEER_CONNECTED:
-        case LogMessageType.PEER_DISCONNECTED:
-            return { activityText: "Peer connection activity occurring", color: "30,144,255" }; // Lime
-
-        case LogMessageType.SHUTDOWN_INITIALIZED:
-        case LogMessageType.SHUTDOWN_COMPLETE:
-        case LogMessageType.SERVICE_DISCONNECTING:
-        case LogMessageType.SERVICE_RECONNECTED:
-        case LogMessageType.DISCONNECTION_INITIALIZED:
-        case LogMessageType.DISCONNECTION_COMPLETE:
-            return { activityText: "Service connection status changing", color: "125, 211, 252" }; // Light Blue
-
-        case LogMessageType.STATE_TRANSITION:
-            return { activityText: "System state is transitioning", color: "209, 213, 219" }; // Light Gray
-
-        case LogMessageType.NODE_DEAD:
-            return { activityText: "A node has gone down", color: "209, 213, 219" }; // Light Gray
-
-        case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
-        case LogMessageType.DISCONNECTING_LEADER:
-            return { activityText: "Leader node reconnection activity happening", color: "209, 213, 219" }; // Light Gray
-
-        default:
-            return { activityText: "System Idle...", color: "209, 213, 219" }; // Light Gray
-    }
-};
+      case LogMessageType.ELECTION_TIMER_STARTED:
+      case LogMessageType.ELECTION_TIMEOUT:
+      case LogMessageType.ELECTION_WON:
+      case LogMessageType.ELECTION_TIMER_STOPPED_I:
+      case LogMessageType.ELECTION_TIMER_STOPPED_II:
+      case LogMessageType.REQUEST_VOTE:
+      case LogMessageType.RECEIVE_VOTE:
+      case LogMessageType.VOTE_FAILURE:
+        return { activityText: "General election happening", color: "251,207,132" }; // Amber-400
+  
+      case LogMessageType.PEER_CONNECTED:
+      case LogMessageType.PEER_DISCONNECTED:
+        return { activityText: "Peer connection activity occurring", color: "96, 165, 250" }; // Blue-400
+  
+      case LogMessageType.SHUTDOWN_INITIALIZED:
+      case LogMessageType.SHUTDOWN_COMPLETE:
+      case LogMessageType.SERVICE_DISCONNECTING:
+      case LogMessageType.SERVICE_RECONNECTED:
+      case LogMessageType.DISCONNECTION_INITIALIZED:
+      case LogMessageType.DISCONNECTION_COMPLETE:
+        return { activityText: "Service connection status changing", color: "147, 197, 253" }; // Blue-300/400
+  
+      case LogMessageType.STATE_TRANSITION:
+        return { activityText: "System state is transitioning", color: "192, 132, 252" }; // Purple-400
+  
+      case LogMessageType.NODE_DEAD:
+        return { activityText: "A node has gone down", color: "248, 113, 113" }; // Red-400
+  
+      case LogMessageType.RECONNECTING_ORIGINAL_LEADER:
+      case LogMessageType.DISCONNECTING_LEADER:
+        return { activityText: "Leader node reconnection activity happening", color: "52, 211, 153" }; // Emerald-400
+  
+      default:
+        return { activityText: "System Idle...", color: "156, 163, 175" }; // Gray-400 (unchanged)
+    };
+  };

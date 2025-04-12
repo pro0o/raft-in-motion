@@ -20,7 +20,7 @@ export default function Footer() {
             <Link
               key={index}
               href={link.href}
-              className="font-medium lowercase text-xs sm:text-sm md:text-base text-zinc-700 tracking-wider hover:bg-blue-500 hover:text-white transition-colors px-1 rounded-sm duration-100 text-center"
+              className="font-medium lowercase text-xs sm:text-sm md:text-base text-zinc-800 tracking-wider hover:bg-blue-500 hover:text-white transition-colors px-1 rounded-sm duration-100 text-center"
             >
               {link.label}
             </Link>

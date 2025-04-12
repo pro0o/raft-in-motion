@@ -5,9 +5,10 @@
 ## Intro...
 
 This simulation is purely based on the [Raft paper](https://raft.github.io/raft.pdf).  
-I started off this project just testing & simulating the Raft consensus algorithm, and welll, visualization happened on the way :).
+I started this project to learn more about Raft simply by trying to simulate it from scratch, which led me to develop a simple visualizer based on my simulation.</br> I hope through this visualizer, you'll also get a zest of raft.
 
-Feel free to explore the Go-only simulation in the `raft-test` branch, its not well optimized though. Also incase, the simulation is not simulating, its because aws is expensive.
+Feel free to explore the Go-only simulation in the `raft-test` branch—though it's not well optimized. </br>
+Also incase, the simulation is not simulating or connection is slow; aws is expensive.
 
 ---
 
@@ -18,7 +19,7 @@ Feel free to explore the Go-only simulation in the `raft-test` branch, its not w
 - [x] Simple KV client & server on app layer.
 - [x] Kill & respawn leaders and followers.
 - [x] Update Log entries via leader heartbeats.
-- [x] ws conn between client-side & ws-server.
+- [x] Ws conn between client-side & ws-server.
 - [x] Logs visualization.
 - [x] CI/CD pipeline w/[docker + aws ec2] & vercel.
 - [x] Rev. proxy using Nginx [No-IP + Let's Encrypt SSL].
@@ -76,7 +77,7 @@ Here are some resources I referenced and learned from while building this projec
 
 - [HashiCorp's Raft Go Package](https://pkg.go.dev/github.com/hashicorp/raft)  [official go raft pkg]
 
-- [Raft Implementations](http://raft.github.io/#implementations) [there are already many implementation of raft in Go and other languages too.] 
+- [Raft Implementations](http://raft.github.io/#implementations) [there are already many implementation of raft in Go and other languages.] 
 
 ## License
 

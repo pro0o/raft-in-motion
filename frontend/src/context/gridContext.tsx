@@ -16,9 +16,9 @@ export const useLogVisualization = (): LogVisualizationContextType => {
   const { logs, connectionStatus } = useLogs()
 
   useEffect(() => {
-    if (!logs.length || connectionStatus !== ConnectionStatus.CONNECTED) return
+    if (!logs.length) return
 
-    if (logs.length % 15 === 0) {
+    if (logs.length % 7 === 0) {
       const latestLog = logs[logs.length - 1]
       if (!latestLog) return
 
