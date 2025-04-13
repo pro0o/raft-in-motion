@@ -63,7 +63,8 @@ npm run dev
 NEXT_PUBLIC_WS_ENDPOINT=wss://localhost:8080/ws?simulate=6
 npm run build
 ```
-## Resources to Learn More About Raft
+
+## Resources
 
 Here are some resources I referenced and learned from while building this project — in no particular order:
 
@@ -73,11 +74,11 @@ Here are some resources I referenced and learned from while building this projec
 
 - [6.824 Distributed Systems Course (YouTube)](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some labs on Go as well.]
 
-- [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [raft implementaion in go]
+- [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [raft implementaion in go.]
+
+- [Raft Implementation in Go - Eli Bendersky](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/) [well documentated implemenation of raft]
 
 - [HashiCorp's Raft Go Package](https://pkg.go.dev/github.com/hashicorp/raft)  [official go raft pkg]
-
-- [Raft Implementations](http://raft.github.io/#implementations) [there are already many implementation of raft in Go and other languages.] 
 
 ## License
 

@@ -111,7 +111,7 @@ export const getLogSpeed = (log: Log): number => {
       case LogMessageType.STATE_TRANSITION:
       case LogMessageType.ELECTION_WON:
       case LogMessageType.NODE_DEAD:
-        return 6; 
+        return 7; 
         
       case LogMessageType.ELECTION_TIMEOUT:
       case LogMessageType.REQUEST_VOTE:
@@ -126,7 +126,7 @@ export const getLogSpeed = (log: Log): number => {
       case LogMessageType.ELECTION_TIMER_STOPPED_II:
       case LogMessageType.PEER_CONNECTED:
       case LogMessageType.PEER_DISCONNECTED:
-        return 6;
+        return 7;
         
       case LogMessageType.SHUTDOWN_INITIALIZED:
       case LogMessageType.SHUTDOWN_COMPLETE:
@@ -134,10 +134,10 @@ export const getLogSpeed = (log: Log): number => {
       case LogMessageType.SERVICE_RECONNECTED:
       case LogMessageType.DISCONNECTION_INITIALIZED:
       case LogMessageType.DISCONNECTION_COMPLETE:
-        return 5;
+        return 6;
         
       default:
-        return 5; 
+        return 6; 
     }
   };
   export const processActivity = (log: Log): { activityText: string; color: string } => {

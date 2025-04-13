@@ -18,7 +18,7 @@ export const useLogVisualization = (): LogVisualizationContextType => {
   useEffect(() => {
     if (!logs.length) return
 
-    if (logs.length % 7 === 0) {
+    if (logs.length % 10 === 0) {
       const latestLog = logs[logs.length - 1]
       if (!latestLog) return
 
