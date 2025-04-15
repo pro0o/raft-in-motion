@@ -65,7 +65,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Nohemi", "sans-serif"],
+        sans: ["open-sauce", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },
       letterSpacing: {

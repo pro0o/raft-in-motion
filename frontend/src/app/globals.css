@@ -233,24 +233,23 @@ body::after {
   }
 }
 
-/* Font declarations */
 @font-face {
-  font-family: 'Nohemi';
-  src: url('/fonts/Nohemi-Regular-BF6438cc579d934.woff') format('woff');
+  font-family: 'open-sauce';
+  src: url('/fonts/open-sauce-400.woff') format('woff');
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'Nohemi';
-  src: url('/fonts/Nohemi-Medium-BF6438cc57ddecd.woff') format('woff');
+  font-family: 'open-sauce';
+  src: url('/fonts/open-sauce-500.woff') format('woff');
   font-weight: 500;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'Nohemi';
-  src: url('/fonts/Nohemi-Bold-BF6438cc577b524.woff') format('woff');
+  font-family: 'open-sauce';
+  src: url('/fonts/open-sauce-700.woff') format('woff');
   font-weight: 700;
   font-style: normal;
 }

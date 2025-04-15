@@ -4,22 +4,22 @@
 
 ## Intro...
 
-This simulation is purely based on the [Raft paper](https://raft.github.io/raft.pdf).  
-I started this project to learn more about Raft simply by trying to simulate it from scratch, which led me to develop a simple visualizer based on my simulation.</br> I hope through this visualizer, you'll also get a zest of raft.
+This simulation is based on the [Raft paper](https://raft.github.io/raft.pdf).  
+I built it to better understand Raft by implementing it from scratch, which eventually led to this visualizer.
 
-Feel free to explore the Go-only simulation in the `raft-test` branch—though it's not well optimized. </br>
-Also incase, the simulation is not simulating or connection is slow; aws is expensive.
+You can explore the Go-only version in the `raft-test` branch (note: it's not optimized).</br>
+If the simulation doesn't run or connection feels slow, blame aws—it’s expensive.
 
 ---
 
 ## Features so far 
 
 - [x] Spawn servers and hold consensus.
-- [x] Timely ping-pong through RPC.
+- [x] Sync. through RPC.
 - [x] Simple KV client & server on app layer.
-- [x] Kill & respawn leaders and followers.
-- [x] Update Log entries via leader heartbeats.
-- [x] Ws conn between client-side & ws-server.
+- [x] Kill & respawn nodes.
+- [x] Update log entries via heartbeats.
+- [x] Ws conn. between client-side & ws-server.
 - [x] Logs visualization.
 - [x] CI/CD pipeline w/[docker + aws ec2] & vercel.
 - [x] Rev. proxy using Nginx [No-IP + Let's Encrypt SSL].
@@ -28,7 +28,6 @@ Also incase, the simulation is not simulating or connection is slow; aws is expe
 - [ ] Sync logs more tightly.
 - [ ] Simulate more cases and visualize.
 - [ ] Reduce rate-limiting and allow more active conn.
-- [ ] Responsive UI.
 - [ ] Interactive Simulations.
 
 ---
@@ -58,31 +57,27 @@ docker run -p 8080:8080 raft-in-motion
 cd frontend/
 npm install
 npm run dev
-
-# For prod, make sure to create a `.env.prod` file in the root dir.
-NEXT_PUBLIC_WS_ENDPOINT=wss://localhost:8080/ws?simulate=6
-npm run build
 ```
 
 ## Resources
 
-Here are some resources I referenced and learned from while building this project — in no particular order:
+Here are some resources I took reference and learned from while building this project — in no particular order:
 
 - [A Student’s Guide to Raft](https://thesquareplanet.com/blog/students-guide-to-raft/) [more of a guide to understand the paper.]
 
 - [The Secret Lives of Data — Raft Visualization](https://thesecretlivesofdata.com/raft/)  [visualization of raft.]
 
-- [6.824 Distributed Systems Course (YouTube)](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some labs on Go as well.]
+- [6.824 Distributed Systems Course [YouTube]](https://www.youtube.com/@6.824) [goated distributed sys playlist to get started to and some labs on Go as well.]
 
-- [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [raft implementaion in go.]
+- [Raft Implementation in Go - Phil Eaton](https://notes.eatonphil.com/2023-05-25-raft.html) [not purely paper based but nice read.]
 
-- [Raft Implementation in Go - Eli Bendersky](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/) [well documentated implemenation of raft]
+- [Raft Implementation in Go - Eli Bendersky](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/) [well documentated; easy to follow.]
 
-- [HashiCorp's Raft Go Package](https://pkg.go.dev/github.com/hashicorp/raft)  [official go raft pkg]
+- [HashiCorp's Raft Go Package](https://pkg.go.dev/github.com/hashicorp/raft)  [official go raft pkg.]
 
 ## License
 
-This project is licensed under the CC BY-NC-ND 4.0 License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT-License. See the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
