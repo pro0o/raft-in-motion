@@ -21,7 +21,7 @@ export default function NotFound() {
           `}
         </pre>
         <p className="text-zinc-700">
-          It seems you've ventured beyond the familiar path.
+          It seems you&rsquo;ve ventured beyond the familiar path.
         </p>
         <Link
           href="/"

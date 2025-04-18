@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import SimulateButton from "@/components/ui/simulateButton"
 import { motion } from "framer-motion"
 import { useMediaQuery } from "@/context/mediaQuery"
+import { Button } from "@/components/ui/button"
+import { ArrowRight } from 'lucide-react';
 
 interface PixelPosition {
   x: number
@@ -16,6 +17,7 @@ interface PixelPosition {
 }
 
 const HomePage: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
   const isMobile = useMediaQuery("(max-width: 640px)")
@@ -29,7 +31,12 @@ const HomePage: React.FC = () => {
   const secondaryColor = "161, 161, 170"
 
   const handleSimulateClick = () => {
-    router.push("/raft")
+    setIsLoading(true)
+    router.prefetch("/raft")
+
+    setTimeout(() => {
+      router.push("/raft")
+    }, 2000)
   }
 
   const titleAnimation = {
@@ -197,7 +204,7 @@ const HomePage: React.FC = () => {
           </header>
 
           <motion.div
-            className="text-zinc-400 text-sm sm:text-base md:text-base font-regular1 max-w-xl mb-6 sm:mb-8 md:mb-12 tracking-wider leading-relaxed text-center px-3 sm:px-6"
+            className="text-zinc-400 text-sm sm:text-base md:text-base font-regular1 max-w-xl mb-6 sm:mb-8 md:mb-10 tracking-wider leading-relaxed text-center px-3 sm:px-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.0, duration: 0.9 }}
@@ -216,7 +223,42 @@ const HomePage: React.FC = () => {
           </motion.div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3, duration: 0.8 }}>
-            <SimulateButton onClick={handleSimulateClick} connectionStatus="home" />
+          <Button
+  onClick={handleSimulateClick}
+  disabled={isLoading}
+className="bg-zinc-200 border-4 border-zinc-400/20 shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-gray-900 text-lg font-medium transition-all duration-800 py-4 px-8 hover:bg-blue-600 hover:text-white group flex items-center"
+>
+              {isLoading ? (
+                <>
+                  <div className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin h-8 w-8 text-gray-900 group-hover:text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </div>
+                </>
+              ) : (
+                (
+                  <>
+                  Let&rsquo;s Simulate
+                  <ArrowRight
+                    className="group-hover:translate-x-4 transition-all duration-600 ease-in-out text-gray-900 group-hover:text-white"
+                    strokeWidth={3}
+                    size={44} 
+                  />
+                </>
+                )
+              )}
+            </Button>
           </motion.div>
         </div>
       </motion.div>

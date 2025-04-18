@@ -1,11 +1,11 @@
-<a href="https://raft-in-motion.vercel.app">
+<a href="https://probin.me/raft-home">
   <img src="./frontend/public/assets/banner.png" alt="raft-in-motion" />
 </a>
 
 ## Intro...
 
 This simulation is based on the [Raft paper](https://raft.github.io/raft.pdf).  
-I built it to better understand Raft by implementing it from scratch, which eventually led to this visualizer.
+raft go brrrr...
 
 You can explore the Go-only version in the `raft-test` branch (note: it's not optimized).</br>
 If the simulation doesn't run or connection feels slow, blame aws—it’s expensive.

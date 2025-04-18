@@ -77,6 +77,7 @@
   }
 }
 
+
 @layer base {
   * {
     @apply border-border;
@@ -98,10 +99,9 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 body::after {
   content: "";
-  background-image: url("https://bedes.qui.gg/images/framernoise.png");
+  background-image: url("/assets/framernoise.png");
   height: 300%;
   width: 300%;
   position: fixed;
@@ -109,7 +109,7 @@ body::after {
   left: 0;
   opacity: 0;
   pointer-events: none;
-  z-index: 100;
+  z-index: 0;
   animation: fadeInGrain 2s ease forwards, animateGrain 10s steps(10) infinite;
 }
 
@@ -121,6 +121,7 @@ body::after {
     opacity: 0.03;
   }
 }
+
 
 @keyframes animateGrain {
   0%, 100% {
@@ -234,22 +235,22 @@ body::after {
 }
 
 @font-face {
-  font-family: 'open-sauce';
-  src: url('/fonts/open-sauce-400.woff') format('woff');
+  font-family: 'Manrope';
+  src: url('/fonts/Manrope-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'open-sauce';
-  src: url('/fonts/open-sauce-500.woff') format('woff');
+  font-family: 'Manrope';
+  src: url('/fonts/Manrope-SemiBold.ttf') format('woff');
   font-weight: 500;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'open-sauce';
-  src: url('/fonts/open-sauce-700.woff') format('woff');
+  font-family: 'Manrope';
+  src: url('/fonts/Manrope-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
 }

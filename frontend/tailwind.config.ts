@@ -65,7 +65,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["open-sauce", "sans-serif"],
+        sans: ["Manrope", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },
       letterSpacing: {

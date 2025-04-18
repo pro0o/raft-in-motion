@@ -6,7 +6,7 @@ export const metadata = {
   title: 'raft-in-motion',
   description: 'A Raft logs demo',
   icons: {
-    icon: '/favicon.png',
+    icon: '/favicon.ico',
   }
 }
 
