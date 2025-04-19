@@ -169,19 +169,18 @@ const HomePage: React.FC = () => {
 
   return (
     
-    <div className="flex items-center justify-center bg-white min-h-screen px-4 py-6 sm:py-8 md:py-12">
+    <div className="flex items-center justify-center bg-white min-h-screen px-4 py-4 sm:py-6 md:py-8 ">
       <motion.div
         className="w-full max-w-3xl mx-auto bg-zinc-900 overflow-hidden shadow-2xl border-4 sm:border-6 md:border-8 border-gray-200 rounded-2xl sm:rounded-3xl"
         initial="hidden"
         animate="visible"
         variants={containerAnimation}
       >
-        <div className="flex flex-col items-center p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col items-center sm:p-3 md:p-4">
           <motion.canvas
             ref={canvasRef}
             width={canvasSize}
             height={canvasSize}
-            className="mb-2 sm:mb-4"
             aria-label="Pixel grid animation with gradual fade and slow updates"
             role="img"
             initial={{ opacity: 0 }}

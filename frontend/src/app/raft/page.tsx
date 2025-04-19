@@ -108,7 +108,7 @@ export default function RaftPage() {
   }
 
   return (
-    <div className="flex flex-col bg-white min-h-screen items-center justify-start px-4 py-2 sm:py-3 md:pt-6 lg:pt-8 pb-4">
+    <div className="flex flex-col bg-white min-h-screen items-center justify-start border-4 px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
       <LogsProvider>
         <LogDispatcherProvider>
           <motion.div

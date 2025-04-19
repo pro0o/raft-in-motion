@@ -118,7 +118,7 @@ body::after {
     opacity: 0;
   }
   100% {
-    opacity: 0.03;
+    opacity: 0.02;
   }
 }
 
