@@ -188,19 +188,25 @@ const HomePage: React.FC = () => {
             transition={{ duration: 0.9 }}
           />
 
-          <header className="pb-3 sm:pb-2 md:pb-4 lowercase font-medium text-zinc-200 opacity-100">
-            <h1 className="text-4xl sm:text-6xl md:text-6xl text-white font-bold tracking-[-0.1em] font-mono text-center flex flex-wrap justify-center">
-              <motion.span custom={2} initial="hidden" animate="visible" variants={titleAnimation}>
-                raft
-              </motion.span>
-              <motion.span custom={3} initial="hidden" animate="visible" variants={titleAnimation}>
-                -in-
-              </motion.span>
-              <motion.span custom={4} initial="hidden" animate="visible" variants={titleAnimation}>
-                motion
-              </motion.span>
-            </h1>
-          </header>
+          <a
+            href="https://youtu.be/rTcXsy0oJR8?si=fBBa95Gnhm8UfOFS"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <header className="pb-3 sm:pb-2 md:pb-4 lowercase font-medium text-zinc-200 opacity-100 cursor-pointer">
+              <h1 className="text-4xl sm:text-6xl md:text-6xl text-white font-bold tracking-[-0.1em] font-mono text-center flex flex-wrap justify-center">
+                <motion.span custom={2} initial="hidden" animate="visible" variants={titleAnimation}>
+                  raft
+                </motion.span>
+                <motion.span custom={3} initial="hidden" animate="visible" variants={titleAnimation}>
+                  -in-
+                </motion.span>
+                <motion.span custom={4} initial="hidden" animate="visible" variants={titleAnimation}>
+                  motion
+                </motion.span>
+              </h1>
+            </header>
+          </a>
 
           <motion.div
             className="text-zinc-400 text-sm sm:text-base md:text-base font-regular1 max-w-xl mb-6 sm:mb-8 md:mb-10 tracking-wider leading-relaxed text-center px-3 sm:px-6"
