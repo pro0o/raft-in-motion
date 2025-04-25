@@ -23,7 +23,7 @@ async function loadGoogleFont(font: string, text: string) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const title = searchParams.get("title")
-  const text = title ? `probin • ${title}` : "probin • raft-in-motion"
+  const text = title ? `patlu • ${title}` : "patlu • raft-in-motion"
 
   return new ImageResponse(
     (
