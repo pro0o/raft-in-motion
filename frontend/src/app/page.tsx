@@ -231,7 +231,7 @@ const HomePage: React.FC = () => {
           <Button
   onClick={handleSimulateClick}
   disabled={isLoading}
-className="bg-zinc-200 border-4 border-zinc-400/20 shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-gray-900 text-lg font-medium transition-all duration-800 py-4 px-8 hover:bg-blue-600 hover:text-white group flex items-center"
+className="bg-zinc-200 border-4 mb-2 border-zinc-400/20 shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-gray-900 text-xl font-medium transition-all duration-800 py-4 px-8 hover:bg-blue-600 hover:text-white group flex items-center"
 >
               {isLoading ? (
                 <>
