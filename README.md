@@ -1,16 +1,13 @@
-<a href="https://raft-in-motion.vercel.app/">
-  <img src="./frontend/public/assets/banner.png" alt="raft-in-motion" />
-</a>
 
-## Intro...
+## raft-in-motion
+implementation of [raft paper](https://raft.github.io/raft.pdf) in go + log-based visualization in next.js.
 
-This simulation is based on the [Raft paper](https://raft.github.io/raft.pdf).  
-Raft go brrrrrr.....
+## notes
 
-You can explore the Go-only version in the `raft-test` branch (note: it's not optimized).</br>
-If the simulation doesn't run or connection feels slow; aws is expensive bruhtherr.
+you can explore the go-only version in the `raft-test` branch (note: it's not optimized).</br>
+if the simulation doesn't run or connection feels slow; aws is expensive bruhtherr.
 
-## Running the Project
+## running the project
 
 ```bash
 # running the go ws server.
@@ -25,9 +22,9 @@ npm install
 npm run dev
 ```
 
-## Resources
+## credits
 
-Here are some resources I took heavily referenced and learned from while building this project — in no particular order:
+here are some resources I learned from while building this project — in no particular order:
 
 - [A Student’s Guide to Raft](https://thesquareplanet.com/blog/students-guide-to-raft/) [more of a guide to understand the paper.]
 
