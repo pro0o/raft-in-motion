@@ -132,7 +132,7 @@ const PixelGrid: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center bg-white">
-      <div className="p-2 sm:p-3 md:p-4 border-4 sm:border-6 md:border-8 border-gray-200 rounded-xl sm:rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
+      <div className="p-2 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl bg-zinc-900 text-white overflow-hidden shadow-md">
         <canvas
           ref={canvasRef}
           width={canvasSize}

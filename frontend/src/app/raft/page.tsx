@@ -14,7 +14,6 @@ export default function RaftPage() {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
-  // Container animation without staggering children
   const containerAnimation = {
     hidden: { opacity: 0 },
     visible: {
@@ -108,7 +107,7 @@ export default function RaftPage() {
   }
 
   return (
-    <div className="flex flex-col bg-white min-h-screen items-center justify-start border-4 px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
+    <div className="flex flex-col bg-white min-h-screen items-center justify-start  px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
       <LogsProvider>
         <LogDispatcherProvider>
           <motion.div
@@ -121,7 +120,7 @@ export default function RaftPage() {
               initial="hidden"
               animate="visible"
               variants={serverContainerAnimation}
-              className={`${isMobile ? "w-full" : isTablet ? "w-1/2" : "w-2/5"} bg-zinc-900 text-white overflow-hidden shadow-lg border-4 sm:border-6 md:border-8 border-gray-200 rounded-xl sm:rounded-2xl md:rounded-3xl`}
+              className={`${isMobile ? "w-full" : isTablet ? "w-1/2" : "w-2/5"} bg-zinc-900 text-white overflow-hidden shadow-lg rounded-xl sm:rounded-2xl md:rounded-3xl`}
             >
               {instances.map((id) => (
                 <motion.div key={id} className="relative" custom={id} variants={serverAnimation}>
@@ -143,10 +142,10 @@ export default function RaftPage() {
               <motion.div variants={pixelGridAnimation}>
                 <PixelGrid />
               </motion.div>
-
               <motion.div variants={eventHistoryAnimation}>
                 <EventHistory />
               </motion.div>
+
             </motion.div>
           </motion.div>
         </LogDispatcherProvider>

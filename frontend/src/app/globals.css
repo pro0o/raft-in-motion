@@ -77,7 +77,6 @@
   }
 }
 
-
 @layer base {
   * {
     @apply border-border;
@@ -90,7 +89,6 @@
   }
 }
 
-/* Hide scrollbar for all elements except code blocks */
 ::-webkit-scrollbar {
   display: none;
 }
@@ -99,100 +97,65 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-body::after {
+
+body::before {
   content: "";
-  background-image: url("/assets/framernoise.png");
-  height: 300%;
-  width: 300%;
   position: fixed;
   top: 0;
   left: 0;
-  opacity: 0;
+  height: 100%;
+  width: 100%;
+  background-image: url("/assets/noise.png");
+  background-repeat: repeat;
+  background-size: cover;
+  opacity: 0.1; 
   pointer-events: none;
-  z-index: 0;
-  animation: fadeInGrain 2s ease forwards, animateGrain 10s steps(10) infinite;
+  z-index: 9999; 
+  mix-blend-mode: overlay; 
 }
 
-@keyframes fadeInGrain {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 0.02;
-  }
-}
-
-
-@keyframes animateGrain {
-  0%, 100% {
-    transform: translate(0, 0);
-  }
-  10% {
-    transform: translate(-5%, -10%);
-  }
-  20% {
-    transform: translate(-15%, -20%);
-  }
-  30% {
-    transform: translate(-5%, -10%);
-  }
-  40% {
-    transform: translate(-15%, -20%);
-  }
-  50% {
-    transform: translate(-5%, -10%);
-  }
-  60% {
-    transform: translate(-15%, -20%);
-  }
-  70% {
-    transform: translate(-5%, -10%);
-  }
-  80% {
-    transform: translate(-15%, -20%);
-  }
-  90% {
-    transform: translate(-5%, -10%);
-  }
-  100% {
-    transform: translate(-15%, -20%);
-  }
-}
-
-/* Page transitions */
+/* Smooth and minimal page transitions */
 .transition-wrapper {
-  transition-property: opacity, transform, filter;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-  will-change: opacity, filter;
+  transition-property: opacity, transform;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-duration: 400ms;
+  will-change: opacity, transform;
 }
 
-.page-transtion {
+.page-transition {
   opacity: 0;
-  filter: blur(12px);
-  transform: translateY(10px);
+  transform: translateY(8px) scale(0.98);
   pointer-events: none;
 }
 
+.page-transition-enter {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Content fade mask for footer */
 .content-fade-mask {
   padding-bottom: 90px;
 }
 
+/* Initial page load animation */
 .initial-load {
   opacity: 0;
-  animation: fadeInPage 10s ease-out forwards 3s;
+  animation: fadeInPage 800ms ease-out forwards 200ms;
 }
 
 @keyframes fadeInPage {
   0% {
     opacity: 0;
+    transform: translateY(4px);
   }
   100% {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Show scrollbar only for code blocks */
+/* Code block scrollbars */
 .code-block-container::-webkit-scrollbar {
   display: block;
   height: 6px;
@@ -234,6 +197,7 @@ body::after {
   }
 }
 
+/* Font faces */
 @font-face {
   font-family: 'Manrope';
   src: url('/fonts/Manrope-Regular.ttf') format('truetype');
