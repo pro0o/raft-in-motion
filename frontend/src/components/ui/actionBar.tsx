@@ -98,7 +98,7 @@ function ActionSearchBar({ actions = allActions }: { actions?: Action[] }) {
         <div className="w-full shadow-lg z-10 backdrop-blur-sm" ref={dropdownRef}>
           {" "}
           <div
-            className="relative flex flex-col sm:flex-row sm:items-center justify-between px-3 sm:px-4 py-3 sm:py-4 md:py-6 h-auto sm:h-16 text-base sm:text-lg rounded-md sm:rounded-2xl bg-zinc-900 backdrop-blur-md hover:bg-zinc-800 cursor-pointer transition-all" 
+            className="relative flex flex-col sm:flex-row sm:items-center justify-between px-3 sm:px-4 py-3 sm:py-4 md:py-6 h-auto sm:h-16 text-base sm:text-lg rounded-2xl sm:rounded-2xl bg-zinc-900 backdrop-blur-md hover:bg-zinc-800 cursor-pointer transition-all" 
           >
             <div
               ref={triggerRef}

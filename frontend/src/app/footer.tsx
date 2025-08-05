@@ -87,11 +87,6 @@ export default function Footer() {
             ))}
           </div>
         </div>
-        <p className="mt-4 text-center text-xs font-medium text-gray-300">
-          View on desktop with a mouse
-          <br />
-          to see the dock interaction.
-        </p>
       </div>
     </footer>
   )
