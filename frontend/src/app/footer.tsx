@@ -2,7 +2,7 @@
 
 import { useRef } from "react"
 import { type MotionValue, animate, motion, useMotionValue, useSpring, useTransform } from "framer-motion"
-import { TypeIcon as type, LucideIcon } from 'lucide-react'
+import { LucideIcon } from 'lucide-react'
 import TransitionLink from "@/lib/tansitionLink"
 
 import { HomeIcon, Github, Folder } from 'lucide-react'
@@ -101,7 +101,7 @@ function AppIcon({ mouseX, item }: AppIconProps) {
     <motion.div ref={ref} style={{ x: xSpring, scale: scaleSpring, y }} className="origin-bottom" onClick={handleClick}>
       <TransitionLink
         href={item.href}
-        className="group relative w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-blue-600 transition-colors duration-200 shadow-lg"
+        className="group relative w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800/0 hover:bg-blue-600 transition-colors duration-200 shadow-lg"
       >
         <div className="relative w-5 h-5 flex items-center justify-center">
           <item.icon size={20} className="text-white" />
