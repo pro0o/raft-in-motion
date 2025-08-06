@@ -1,13 +1,13 @@
 
-## raft-in-motion
-implementation of [raft paper](https://raft.github.io/raft.pdf) in go + log-based visualization in next.js.
+## Raft-in-motion
+Implementation of [raft paper](https://raft.github.io/raft.pdf) in go + log-based visualization in next.js.
 
-## notes
+## Notes
 
-you can explore the go-only version in the `raft-test` branch (note: it's not optimized).</br>
+You can explore the go-only version in the `raft-test` branch (note: it's not optimized).</br>
 if the simulation doesn't run or connection feels slow; aws is expensive bruhtherr.
 
-## running the project
+## Running the project
 
 ```bash
 # running the go ws server.
@@ -22,9 +22,9 @@ npm install
 npm run dev
 ```
 
-## credits
+## Credits
 
-here are some resources I learned from while building this project — in no particular order:
+Here are some resources I learned from while building this project — in no particular order:
 
 - [A Student’s Guide to Raft](https://thesquareplanet.com/blog/students-guide-to-raft/) [more of a guide to understand the paper.]
 

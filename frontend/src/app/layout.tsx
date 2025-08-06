@@ -6,7 +6,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   metadataBase: new URL("https://raft-in-motion.vercel.app"),
   title: {
-    default: "raft-in-motion",
+    default: "Wings in Motion",
     template: "%s | raft-in-motion",
   },
   description: "Simulate core feats of raft.",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "raft-in-motion",
-    description: "A Raft consensus visualizer made using Go and Next.js.",
+    description: "A Raft consensus viz.",
     url: "https://raft-in-motion.vercel.app",
     siteName: "raft-in-motion",
     locale: "en_US",

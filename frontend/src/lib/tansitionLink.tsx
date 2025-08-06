@@ -1,5 +1,4 @@
 "use client"
-
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { ReactNode, MouseEvent } from "react"
@@ -21,7 +20,18 @@ const TransitionLink = ({ href, children, className, onMouseEnter, onMouseLeave 
     }
 
     e.preventDefault()
-    router.push(href)
+
+    const wrapper = document.querySelector('.transition-wrapper')
+    
+    if (wrapper) {
+      wrapper.classList.add('page-transition')
+      
+      setTimeout(() => {
+        router.push(href)
+      }, 150)
+    } else {
+      router.push(href)
+    }
   }
 
   return (

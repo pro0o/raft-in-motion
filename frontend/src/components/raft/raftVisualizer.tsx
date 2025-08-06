@@ -29,7 +29,7 @@ export function LogVisualizer({ containerRef, containerHeight, bars, handleBarEx
           }}
           style={{ padding: "8px 0" }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/50 via-zinc-800/5 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-zinc-900/70 pointer-events-none" />
           
           <motion.div
             className="relative w-full"
