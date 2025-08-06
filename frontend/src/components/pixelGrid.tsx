@@ -4,7 +4,6 @@ import { useEffect, useRef, useMemo } from "react"
 import { useLogVisualization } from "@/context/gridContext"
 import { useMediaQuery } from "@/context/mediaQuery"
 
-// More lightweight interface for active pixels
 interface ActivePixel {
   x: number
   y: number
@@ -18,7 +17,6 @@ const PixelGrid: React.FC = () => {
   const isMobile = useMediaQuery("(max-width: 640px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
-  // Calculate responsive values just once with useMemo
   const config = useMemo(() => ({
     pixelSize: isMobile ? 6 : 8,
     gap: isMobile ? 12 : 14,

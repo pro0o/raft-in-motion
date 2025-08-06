@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useMediaQuery } from "@/context/mediaQuery"
 import { Button } from "@/components/ui/button"
+import Footer from "./footer"
 
 const HomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
@@ -56,7 +57,7 @@ const HomePage: React.FC = () => {
     width={imageSize}
     height={imageSize}
     className="object-cover rounded-md mb-6 w-full max-w-xs sm:max-w-sm md:max-w-md 
-               filter grayscale brightness-90 group-hover:grayscale-0 group-hover:brightness-110
+               filter grayscale brightness-90 group-hover:grayscale-0 group-hover:brightness-100
                transition-all duration-700 ease-in-out"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -74,7 +75,7 @@ const HomePage: React.FC = () => {
             <Button
               onClick={handleSimulateClick}
               disabled={isLoading}
-              className="bg-zinc-200 border-2 sm:border-4 tracking-tight font-medium mb-2 border-zinc-400/20 shadow-md sm:shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-neutral-800 text-2xl sm:text-2xl md:text-2xl transition-all duration-800 py-5 px-6 sm:py-5 sm:px-8 hover:bg-blue-600 hover:text-white group flex items-center gap-2"
+              className="bg-zinc-200 border-2 sm:border-4 tracking-tight font-medium border-zinc-400/20 shadow-md sm:shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-neutral-800 text-xl sm:text-2xl md:text-2xl transition-all duration-800 py-5 px-6 sm:py-5 sm:px-8 hover:bg-blue-600 hover:text-white group flex items-center gap-2"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -106,6 +107,14 @@ const HomePage: React.FC = () => {
           </motion.div>
         </div>
       </motion.div>
+      <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 2.2, duration: 0.7 }} 
+              className="mt-auto pt-2"
+            >
+              <Footer />
+            </motion.div>
     </div>
   )
 }
