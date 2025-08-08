@@ -1,4 +1,5 @@
 "use client"
+
 import { motion } from "framer-motion"
 import { LogsProvider } from "@/context/logsContext"
 import ServerInstance from "@/components/serverInstance"
@@ -19,25 +20,23 @@ export default function RaftPage() {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.4,
+        duration: 0.3, // Reduced from 0.4
         ease: "easeOut",
       },
     },
   }
 
-  // Sequential animations for each major section
-  // Each section has its own delay to create a one-at-a-time appearance
   const serverContainerAnimation = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
+        duration: 0.4, 
         ease: "easeOut",
-        delay: 0.2, // First element to appear
+        delay: 0.1, 
         when: "beforeChildren",
-        staggerChildren: 0.15,
+        staggerChildren: 0.1,
       },
     },
   }
@@ -47,12 +46,12 @@ export default function RaftPage() {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.4,
+        duration: 0.3, // Reduced from 0.4
         ease: "easeOut",
-        delay: 0.8, // Appears after server container
+        delay: 0.4, // Reduced from 0.8 (appears after server container)
         when: "beforeChildren",
-        delayChildren: 0.2,
-        staggerChildren: 0.3, // Larger stagger for more sequential appearance
+        delayChildren: 0.1, // Reduced from 0.2
+        staggerChildren: 0.2, // Reduced from 0.3
       },
     },
   }
@@ -63,8 +62,8 @@ export default function RaftPage() {
       opacity: 1,
       scale: 1,
       transition: {
-        delay: i * 0.15,
-        duration: 0.3,
+        delay: i * 0.08, 
+        duration: 0.25,
         ease: "easeOut",
       },
     }),
@@ -76,7 +75,7 @@ export default function RaftPage() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.3, 
         ease: "easeOut",
       },
     },
@@ -88,7 +87,7 @@ export default function RaftPage() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.3,
         ease: "easeOut",
       },
     },
@@ -100,14 +99,14 @@ export default function RaftPage() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.3, 
         ease: "easeOut",
       },
     },
   }
 
   return (
-    <div className="flex flex-col bg-white min-h-screen items-center justify-start  px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
+    <div className="flex flex-col bg-white min-h-screen items-center justify-start px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
       <LogsProvider>
         <LogDispatcherProvider>
           <motion.div
@@ -128,7 +127,6 @@ export default function RaftPage() {
                 </motion.div>
               ))}
             </motion.div>
-
             <motion.div
               initial="hidden"
               animate="visible"
@@ -138,23 +136,20 @@ export default function RaftPage() {
               <motion.div variants={searchBarAnimation}>
                 <ActionSearchBar />
               </motion.div>
-
               <motion.div variants={pixelGridAnimation}>
                 <PixelGrid />
               </motion.div>
               <motion.div variants={eventHistoryAnimation}>
                 <EventHistory />
               </motion.div>
-
             </motion.div>
           </motion.div>
         </LogDispatcherProvider>
       </LogsProvider>
-
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 2.2, duration: 0.7 }} 
+        transition={{ delay: 0.8, duration: 0.4 }} 
         className="mt-auto pt-4"
       >
         <Footer />

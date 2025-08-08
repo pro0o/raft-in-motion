@@ -108,7 +108,7 @@ body::before {
   background-image: url("/assets/noise.png");
   background-repeat: repeat;
   background-size: cover;
-  opacity: 0.1; 
+  opacity: 0.15; 
   pointer-events: none;
   z-index: 9999; 
   mix-blend-mode: overlay; 
