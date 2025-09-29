@@ -5,7 +5,7 @@ import { type MotionValue, animate, motion, useMotionValue, useSpring, useTransf
 import { LucideIcon } from 'lucide-react'
 import TransitionLink from "@/lib/tansitionLink"
 
-import { HomeIcon, Github, Folder } from 'lucide-react'
+import { Github, Folder } from 'lucide-react'
 
 const SCALE = 1.8
 const DISTANCE = 80
@@ -23,7 +23,6 @@ type NavigationItem = {
 }
 
 const NAVIGATION_ITEMS: NavigationItem[] = [
-  { icon: HomeIcon, href: "/", label: "Home" },
   { icon: Folder, href: "https://www.probin.me", label: "my-home" },
   { icon: Github, href: "https://github.com/pro0o/raft-in-motion/", label: "GitHub" },
 ]

@@ -1,126 +1,159 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { useMediaQuery } from "@/context/mediaQuery"
-import { Button } from "@/components/ui/button"
+import { LogsProvider } from "@/context/logsContext"
+import ServerInstance from "@/components/serverInstance"
+import { LogDispatcherProvider } from "@/context/logsDispatcher"
+import PixelGrid from "@/components/pixelGrid"
+import EventHistory from "@/components/eventHistory"
+import ActionSearchBar from "@/components/ui/actionBar"
 import Footer from "./footer"
+import { useMediaQuery } from "@/context/mediaQuery"
 
-const HomePage: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const isMobile = useMediaQuery("(max-width: 640px)")
+export default function RaftPage() {
+  const instances = [0, 1, 2]
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
-  const imageSize = isMobile ? 300 : isTablet ? 420 : 540
-
-  const handleSimulateClick = () => {
-    setIsLoading(true)
-    // Prefetching makes navigating between different routes in your application feel instant [^2].
-    router.prefetch("/raft")
-    setTimeout(() => {
-      router.push("/raft")
-    }, 2000)
-  }
 
   const containerAnimation = {
-    hidden: { opacity: 0, scale: 0.96, y: 20 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      scale: 1,
+      transition: {
+        duration: 0.3, // Reduced from 0.4
+        ease: "easeOut",
+      },
+    },
+  }
+
+  const serverContainerAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
       y: 0,
       transition: {
-        duration: 0.7, // Reduced from 0.8
-        ease: [0.25, 0.1, 0.25, 1],
+        duration: 0.4, 
+        ease: "easeOut",
+        delay: 0.1, 
         when: "beforeChildren",
+        staggerChildren: 0.1,
+      },
+    },
+  }
+
+  const rightContainerAnimation = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3, // Reduced from 0.4
+        ease: "easeOut",
+        delay: 0.4, // Reduced from 0.8 (appears after server container)
+        when: "beforeChildren",
+        delayChildren: 0.1, // Reduced from 0.2
+        staggerChildren: 0.2, // Reduced from 0.3
+      },
+    },
+  }
+
+  const serverAnimation = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: (i: number) => ({
+      opacity: 1,
+      scale: 1,
+      transition: {
+        delay: i * 0.08, 
+        duration: 0.25,
+        ease: "easeOut",
+      },
+    }),
+  }
+
+  const searchBarAnimation = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3, 
+        ease: "easeOut",
+      },
+    },
+  }
+
+  const pixelGridAnimation = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3,
+        ease: "easeOut",
+      },
+    },
+  }
+
+  const eventHistoryAnimation = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3, 
+        ease: "easeOut",
       },
     },
   }
 
   return (
-    <div className="flex items-center justify-center bg-white min-h-screen px-4 py-6 sm:py-8">
-      <motion.div
-        className="w-full max-w-3xl mx-auto bg-zinc-900 overflow-hidden shadow-2xl rounded-xl"
-        initial="hidden"
-        animate="visible"
-        variants={containerAnimation}
-      >
-        <div className="flex flex-col items-center p-4 sm:p-6 md:p-8">
-          <a
-            href="https://www.youtube.com/watch?v=rTcXsy0oJR8"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group"
-          >
-            <motion.img
-              src="/assets/bg.png"
-              alt="Raft"
-              width={imageSize}
-              height={imageSize}
-              className="object-cover rounded-md mb-6 w-full max-w-lg sm:max-w-xl md:max-w-2xl filter grayscale brightness-90 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-700 ease-in-out"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }} // Reduced from 0.5
-            />
-          </a>
+    <div className="flex flex-col bg-white min-h-screen items-center justify-start px-4 py-1 sm:py-2 md:pt-2 lg:pt-4 pb-4">
+      <LogsProvider>
+        <LogDispatcherProvider>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.4 }} // Reduced delay from 0.9 and duration from 0.5
-            className="w-full flex justify-center"
+            initial="hidden"
+            animate="visible"
+            variants={containerAnimation}
+            className={`flex ${isMobile ? "flex-col" : "flex-row"} w-full max-w-6xl gap-4 md:gap-6 items-center justify-center`}
           >
-            <Button
-  onClick={handleSimulateClick}
-  disabled={isLoading}
-  className="bg-zinc-200 border-2 sm:border-4 tracking-tight font-medium border-zinc-400/20 
-             shadow-md sm:shadow-[0_2px_6px_rgba(255,255,255,0.2)] rounded-lg text-neutral-800 
-             text-xl sm:text-2xl md:text-2xl transition-colors ease-in-out 
-             duration-400 py-5 px-6 sm:py-5 sm:px-8 hover:bg-blue-600 hover:text-white 
-             group flex items-center gap-2"
->
-  {isLoading ? (
-    <div className="flex items-center justify-center">
-      <svg
-        className="animate-spin h-6 w-6 sm:h-7 sm:w-7 text-gray-900 group-hover:text-white"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 
-             1.135 5.824 3 7.938l3-2.647z"
-        />
-      </svg>
-    </div>
-  ) : (
-    <>Simulate</>
-  )}
-</Button>
-
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={serverContainerAnimation}
+              className={`${isMobile ? "w-full" : isTablet ? "w-1/2" : "w-2/5"} bg-zinc-900 text-white overflow-hidden shadow-lg rounded-xl sm:rounded-2xl md:rounded-3xl`}
+            >
+              {instances.map((id) => (
+                <motion.div key={id} className="relative" custom={id} variants={serverAnimation}>
+                  <ServerInstance raftID={id} />
+                </motion.div>
+              ))}
+            </motion.div>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={rightContainerAnimation}
+              className={`${isMobile ? "w-full" : isTablet ? "w-1/2" : "w-2/5"} flex flex-col gap-4`}
+            >
+              <motion.div variants={searchBarAnimation}>
+                <ActionSearchBar />
+              </motion.div>
+              <motion.div variants={pixelGridAnimation}>
+                <PixelGrid />
+              </motion.div>
+              <motion.div variants={eventHistoryAnimation}>
+                <EventHistory />
+              </motion.div>
+            </motion.div>
           </motion.div>
-        </div>
-      </motion.div>
+        </LogDispatcherProvider>
+      </LogsProvider>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.0, duration: 0.4 }} // Reduced delay from 1.2 and duration from 0.5
-        className="mt-auto pt-2"
+        transition={{ delay: 0.8, duration: 0.4 }} 
+        className="mt-auto pt-4"
       >
         <Footer />
       </motion.div>
     </div>
   )
 }
-
-export default HomePage
