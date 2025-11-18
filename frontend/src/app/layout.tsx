@@ -6,7 +6,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   metadataBase: new URL("https://raft-in-motion.vercel.app"),
   title: {
-    default: "Wings in Motion",
+    default: "Raft",
     template: "%s | raft-in-motion",
   },
   description: "Simulate core feats of raft.",
